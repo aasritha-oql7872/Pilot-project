@@ -1,0 +1,50 @@
+# Documentation: README.md at the repository root is the only tracked Markdown file
+*.md
+!/README.md
+
+# Python environments
+.venv/
+venv/
+env/
+.python-version
+
+# Python caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# macOS metadata
+.DS_Store
+._*
+
+# Hugging Face caches and downloaded model weights
+.cache/
+huggingface/
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.ckpt
+
+# Generated training/evaluation outputs (adapters, checkpoints, traces, logs, figures)
+outputs/
+*.log
+wandb/
+runs/
+
+# Scratch and temporary files
+scratch/
+tmp/
+*.tmp
+*.swp
+
+# Credentials and secrets
+.env
+.env.*
+*.pem
+*.key
+.netrc
+
+# Local editor / machine configuration
+.vscode/
+.idea/

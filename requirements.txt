@@ -1,0 +1,12 @@
+# Versions tested together on 2026-10-29 (Python 3.11). Exact pins in requirements.lock.
+torch==2.15.0
+transformers==5.22.0
+trl==1.17.0
+peft==0.21.2
+datasets
+accelerate
+rank-bm25
+pyyaml
+pandas
+matplotlib
+pytest

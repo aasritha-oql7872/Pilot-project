@@ -1,0 +1,26 @@
+{
+  "seed": 42,
+  "splits": {
+    "train": {
+      "tasks": 240,
+      "no_search": 96,
+      "lookup": 144,
+      "corpus_docs": 240,
+      "corpus_sha256": "f10a98907d5c76bf"
+    },
+    "dev": {
+      "tasks": 60,
+      "no_search": 24,
+      "lookup": 36,
+      "corpus_docs": 60,
+      "corpus_sha256": "27a8ce15a8a7ba5c"
+    },
+    "test": {
+      "tasks": 100,
+      "no_search": 40,
+      "lookup": 60,
+      "corpus_docs": 100,
+      "corpus_sha256": "f651a4186e7add80"
+    }
+  }
+}
