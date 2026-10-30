@@ -38,8 +38,15 @@ def summarize(traces):
 
     lookup = [t for t in traces if t["kind"] == "lookup"]
     no_search = [t for t in traces if t["kind"] == "no_search"]
-    right_decision = lambda t: (t["num_searches"] > 0) == (t["kind"] == "lookup")
+    right_decision = lambda t: (t["num_searches"] > 0) == (t["kind"] != "no_search")
     gold_retrieved = lambda t: any(t["evidence_doc_ids"][0] in ids for ids in t["retrieved_doc_ids"])
+    all_evidence = lambda t: set(t["evidence_doc_ids"]) <= {d for ids in t["retrieved_doc_ids"] for d in ids}
+    by_kind = {}
+    for kind in sorted({t["kind"] for t in traces}):
+        rows = [t for t in traces if t["kind"] == kind]
+        by_kind[kind] = {"n": len(rows), "accuracy": rate(rows, lambda t: t["correct"]),
+                         "mean_searches": rate(rows, lambda t: t["num_searches"]),
+                         "all_evidence_retrieved": rate(rows, all_evidence) if kind != "no_search" else None}
     return {
         "n": len(traces),
         "accuracy": rate(traces, lambda t: t["correct"]),
@@ -55,6 +62,7 @@ def summarize(traces):
         "completion_rate": rate(traces, lambda t: t["final_answer"] is not None),
         "evidence_recall_at_2_lookup": rate(lookup, gold_retrieved),
         "mean_reward": rate(traces, lambda t: t["reward"]),
+        "by_kind": by_kind,
     }
 
 

@@ -45,6 +45,9 @@ LOOKUP_QUESTIONS = {
     "city": ["In which city is Project {p} based?", "Where is Project {p} located?"],
     "affiliation": ["Which institution is {p} affiliated with?", "Where does {p} work?"],
 }
+# Two-hop questions: project -> principal investigator -> the PI's affiliation (two searches).
+TWOHOP_QUESTIONS = ["Which institution is the principal investigator of Project {p} affiliated with?",
+                    "Where does the lead researcher of Project {p} work?"]
 # No-search questions state the fact in the prompt, then ask for it.
 NO_SEARCH_QUESTIONS = {
     "pi": "The archive says Project {p} is led by {v}. Who leads Project {p}?",
@@ -124,6 +127,20 @@ def build_split(rng, used, split, n_tasks):
     return tasks, corpus
 
 
+def build_twohop(rng, used, n_tasks):
+    """Held-out compositional split with its own entities and corpus (never trained on)."""
+    projects = [make_project(rng, used) for _ in range(n_tasks)]
+    tasks = []
+    for i, proj in enumerate(projects):
+        name = proj["name"].lower()
+        tasks.append({"kind": "twohop", "attribute": "pi_affiliation", "subject": proj["name"],
+                      "gold": proj["affiliation"],
+                      "question": rng.choice(TWOHOP_QUESTIONS).format(p=proj["name"]),
+                      "evidence_doc_ids": [f"{name}_pi", f"{name}_affiliation"],
+                      "task_id": f"twohop_twohop_{i:03d}", "split": "twohop"})
+    return tasks, build_corpus(rng, projects)
+
+
 def write_jsonl(path, rows):
     with open(path, "w") as f:
         for row in rows:
@@ -145,19 +162,22 @@ def main():
     parser.add_argument("--train", type=int, default=240)
     parser.add_argument("--dev", type=int, default=60)
     parser.add_argument("--test", type=int, default=100)
+    parser.add_argument("--twohop", type=int, default=60)
     args = parser.parse_args()
 
     rng = random.Random(args.seed)
     used = set()
     manifest = {"seed": args.seed, "splits": {}}
-    for split, n in [("train", args.train), ("dev", args.dev), ("test", args.test)]:
-        tasks, corpus = build_split(rng, used, split, n)
+    for split, n in [("train", args.train), ("dev", args.dev), ("test", args.test), ("twohop", args.twohop)]:
+        # twohop is drawn last, so the other splits are identical with or without it
+        tasks, corpus = build_twohop(rng, used, n) if split == "twohop" else build_split(rng, used, split, n)
         write_jsonl(DATA_DIR / f"{split}_tasks.jsonl", tasks)
         write_jsonl(DATA_DIR / f"{split}_corpus.jsonl", corpus)
         manifest["splits"][split] = {
             "tasks": len(tasks),
             "no_search": sum(t["kind"] == "no_search" for t in tasks),
             "lookup": sum(t["kind"] == "lookup" for t in tasks),
+            "twohop": sum(t["kind"] == "twohop" for t in tasks),
             "corpus_docs": len(corpus),
             "corpus_sha256": file_hash(DATA_DIR / f"{split}_corpus.jsonl"),
         }

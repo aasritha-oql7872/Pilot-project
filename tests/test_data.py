@@ -65,3 +65,17 @@ def test_model_visible_prompt_has_no_private_fields():
             assert doc_id not in visible
         if t["kind"] == "lookup":
             assert t["gold"] not in visible
+
+
+def test_twohop_split_is_isolated_and_answerable():
+    tasks = read_jsonl(DATA_DIR / "twohop_tasks.jsonl")
+    corpus = read_jsonl(DATA_DIR / "twohop_corpus.jsonl")
+    docs = {d["doc_id"]: d["text"] for d in corpus}
+    assert len(tasks) >= 50
+    for t in tasks:
+        assert t["gold"].lower() not in t["question"].lower()
+        assert t["gold"] in docs[t["evidence_doc_ids"][1]]       # answer lives in the second hop only
+        assert t["gold"] not in docs[t["evidence_doc_ids"][0]]
+    train_test = {d["doc_id"] for s in SPLITS for d in CORPUS[s]}
+    assert not {d["doc_id"] for d in corpus} & train_test
+    assert not {t["gold"] for t in tasks} & {t["gold"] for s in SPLITS for t in TASKS[s]} - _years()

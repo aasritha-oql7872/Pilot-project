@@ -95,9 +95,12 @@ def main():
     parser.add_argument("--config", default="configs/train.yaml")
     parser.add_argument("--output", default=None)
     parser.add_argument("--smoke", action="store_true")
+    parser.add_argument("--seed", type=int, default=None, help="override the config seed")
     args = parser.parse_args()
 
     cfg = load_config(args.config, args.smoke)
+    if args.seed is not None:
+        cfg["seed"] = args.seed
     out = Path(args.output or f"outputs/{cfg['run_id']}")
     out.mkdir(parents=True, exist_ok=True)
     (out / "config_snapshot.yaml").write_text(yaml.safe_dump(cfg, sort_keys=False))
