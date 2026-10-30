@@ -1,0 +1,30 @@
+run_id: mixed
+model: Qwen/Qwen3-0.6B
+seed: 42
+train_splits: [train, twohop_train]  # one-hop + two-hop tasks
+chat_template_kwargs: {enable_thinking: false}  # Qwen3 non-thinking mode
+
+lora:
+  r: 8
+  lora_alpha: 16
+  lora_dropout: 0.05
+  target_modules: [q_proj, v_proj]
+
+grpo:
+  max_steps: 100
+  per_device_train_batch_size: 16   # = 4 prompts x num_generations
+  gradient_accumulation_steps: 1
+  num_generations: 4
+  learning_rate: 5.0e-5
+  temperature: 0.7
+  max_completion_length: 384        # two searches need more room
+  max_tool_calling_iterations: 2    # tool-call cap
+  beta: 0.0                         # TRL default: no KL / reference model
+  logging_steps: 1
+  save_strategy: "no"               # adapter saved once at the end
+  report_to: none
+
+smoke:  # overrides for --smoke (G1 gate)
+  max_steps: 3
+  per_device_train_batch_size: 8
+  max_completion_length: 192

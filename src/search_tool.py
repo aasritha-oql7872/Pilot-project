@@ -31,7 +31,8 @@ class Retriever:
 
     @classmethod
     def for_split(cls, split):
-        return cls(read_jsonl(DATA_DIR / f"{split}_corpus.jsonl"))
+        """`split` may join several splits with "+" (mixed training); doc ids are globally unique."""
+        return cls([d for name in split.split("+") for d in read_jsonl(DATA_DIR / f"{name}_corpus.jsonl")])
 
     def search(self, query, k=TOP_K):
         """Top-k docs by BM25 score; ties broken by corpus order so results are stable."""

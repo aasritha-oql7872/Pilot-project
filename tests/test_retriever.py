@@ -50,3 +50,11 @@ def test_twohop_oracle_recall():
         second = [d["doc_id"] for d in r.search(f"{pi_name} affiliated institution")]
         hits += t["evidence_doc_ids"][1] in second
     assert hits / len(tasks) >= 0.9, (hits, len(tasks))
+
+
+def test_mixed_retriever_serves_both_splits():
+    mixed = Retriever.for_split("train+twohop_train")
+    for split in ["train", "twohop_train"]:
+        task = next(t for t in read_jsonl(DATA_DIR / f"{split}_tasks.jsonl") if t["kind"] != "no_search")
+        ids = [d["doc_id"] for d in mixed.search(task["question"])]
+        assert task["evidence_doc_ids"][0] in ids

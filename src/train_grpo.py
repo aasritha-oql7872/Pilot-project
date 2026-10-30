@@ -32,9 +32,9 @@ def load_config(path, smoke):
     return cfg
 
 
-def task_dataset(split):
+def task_dataset(splits):
     """Trainer rows: the visible prompt plus metadata that only reset()/reward see."""
-    rows = read_jsonl(DATA_DIR / f"{split}_tasks.jsonl")
+    rows = [r for split in splits for r in read_jsonl(DATA_DIR / f"{split}_tasks.jsonl")]
     return Dataset.from_list([{**row, "prompt": make_prompt(row["question"])} for row in rows])
 
 
@@ -107,6 +107,7 @@ def main():
     trace_path = out / "trajectories.jsonl"
     trace_path.unlink(missing_ok=True)
 
+    train_splits = cfg.get("train_splits", ["train"])
     use_bf16 = torch.cuda.is_available() and torch.cuda.is_bf16_supported()
     grpo_args = GRPOConfig(
         output_dir=str(out / "checkpoints"), seed=cfg["seed"], bf16=use_bf16,
@@ -116,9 +117,9 @@ def main():
     trainer = GRPOTrainer(
         model=cfg["model"],
         args=grpo_args,
-        train_dataset=task_dataset("train"),
+        train_dataset=task_dataset(train_splits),
         reward_funcs=make_reward_func(trace_path, out.name, cfg["model"], cfg["seed"]),
-        environment_factory=make_env_factory("train"),
+        environment_factory=make_env_factory("+".join(train_splits)),
         peft_config=LoraConfig(task_type="CAUSAL_LM", **cfg["lora"]),
         callbacks=[MetricsCSV(out / "train_metrics.csv")],
     )
@@ -134,6 +135,7 @@ def main():
     extra = {"run_id": out.name, "model": cfg["model"], "trainable_params": trainable,
              "lora_tensors": len(before), "lora_max_abs_delta": max_delta,
              "optimizer_steps": trainer.state.global_step,
+             "train_splits": "+".join(train_splits),
              "train_corpus_sha256": file_hash(DATA_DIR / "train_corpus.jsonl")}
     if torch.cuda.is_available():
         extra["peak_vram_gb"] = round(torch.cuda.max_memory_allocated() / 1e9, 2)

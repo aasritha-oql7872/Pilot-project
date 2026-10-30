@@ -32,6 +32,22 @@
       "twohop": 60,
       "corpus_docs": 300,
       "corpus_sha256": "3db2cfc1d671d168"
+    },
+    "twohop_train": {
+      "tasks": 80,
+      "no_search": 0,
+      "lookup": 0,
+      "twohop": 80,
+      "corpus_docs": 400,
+      "corpus_sha256": "4425b3f710f1a3df"
+    },
+    "twohop_dev": {
+      "tasks": 30,
+      "no_search": 0,
+      "lookup": 0,
+      "twohop": 30,
+      "corpus_docs": 150,
+      "corpus_sha256": "14e4ed2c2b1cfe9e"
     }
   }
 }

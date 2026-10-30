@@ -127,8 +127,9 @@ def build_split(rng, used, split, n_tasks):
     return tasks, corpus
 
 
-def build_twohop(rng, used, n_tasks):
-    """Held-out compositional split with its own entities and corpus (never trained on)."""
+def build_twohop(rng, used, split, n_tasks):
+    """Compositional split with its own entities and corpus. `twohop` is the held-out test;
+    `twohop_train` / `twohop_dev` exist for the mixed-training experiment."""
     projects = [make_project(rng, used) for _ in range(n_tasks)]
     tasks = []
     for i, proj in enumerate(projects):
@@ -137,7 +138,7 @@ def build_twohop(rng, used, n_tasks):
                       "gold": proj["affiliation"],
                       "question": rng.choice(TWOHOP_QUESTIONS).format(p=proj["name"]),
                       "evidence_doc_ids": [f"{name}_pi", f"{name}_affiliation"],
-                      "task_id": f"twohop_twohop_{i:03d}", "split": "twohop"})
+                      "task_id": f"{split}_twohop_{i:03d}", "split": split})
     return tasks, build_corpus(rng, projects)
 
 
@@ -163,14 +164,18 @@ def main():
     parser.add_argument("--dev", type=int, default=60)
     parser.add_argument("--test", type=int, default=100)
     parser.add_argument("--twohop", type=int, default=60)
+    parser.add_argument("--twohop-train", type=int, default=80)
+    parser.add_argument("--twohop-dev", type=int, default=30)
     args = parser.parse_args()
 
     rng = random.Random(args.seed)
     used = set()
     manifest = {"seed": args.seed, "splits": {}}
-    for split, n in [("train", args.train), ("dev", args.dev), ("test", args.test), ("twohop", args.twohop)]:
-        # twohop is drawn last, so the other splits are identical with or without it
-        tasks, corpus = build_twohop(rng, used, n) if split == "twohop" else build_split(rng, used, split, n)
+    for split, n in [("train", args.train), ("dev", args.dev), ("test", args.test), ("twohop", args.twohop),
+                    ("twohop_train", args.twohop_train), ("twohop_dev", args.twohop_dev)]:
+        # twohop splits are drawn last, so earlier splits are identical with or without them
+        tasks, corpus = (build_twohop(rng, used, split, n) if split.startswith("twohop")
+                         else build_split(rng, used, split, n))
         write_jsonl(DATA_DIR / f"{split}_tasks.jsonl", tasks)
         write_jsonl(DATA_DIR / f"{split}_corpus.jsonl", corpus)
         manifest["splits"][split] = {
