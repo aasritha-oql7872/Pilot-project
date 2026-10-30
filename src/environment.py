@@ -13,6 +13,8 @@ from src.reward import score
 from src.search_tool import Retriever, format_results
 
 MAX_SEARCHES = 2
+ANSWER_FORMAT = ("The answer must be only the requested value (a name, organization, city or year), "
+                 "not a sentence: <answer>value</answer>.")
 SYSTEM_PROMPT = (
     "You answer questions about fictional research projects and people. You have no prior "
     "knowledge of them: the only sources of facts are the question itself and a private "
@@ -55,7 +57,7 @@ class SearchEnv:
         self.num_searches += 1
         results = self.retriever.search(query)
         self.retrieved.append([r["doc_id"] for r in results])
-        return format_results(results)
+        return format_results(results) + "\n\n" + ANSWER_FORMAT
 
 
 def score_episode(env, completion):
