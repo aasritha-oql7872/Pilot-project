@@ -1,0 +1,17 @@
+{
+  "seed": 20261102,
+  "splits": {
+    "final": {
+      "tasks": 100,
+      "corpus_docs": 100,
+      "tasks_sha256": "757df875295ec13d",
+      "corpus_sha256": "fca54bec93f1b672"
+    },
+    "twohop_final": {
+      "tasks": 100,
+      "corpus_docs": 500,
+      "tasks_sha256": "0fc1c27a4ff45de5",
+      "corpus_sha256": "fa46ce4632543d37"
+    }
+  }
+}

@@ -1,0 +1,281 @@
+{
+  "mode": "forced_two_searches",
+  "n": 30,
+  "accuracy": 0.8666666666666667,
+  "episodes": [
+    {
+      "task_id": "twohop_dev_twohop_000",
+      "answer": "Melduntav Laboratory",
+      "correct": true,
+      "observation_docs": [
+        "quinquinol_affiliation",
+        "quinquinol_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_001",
+      "answer": "Uxvelmel Foundation",
+      "correct": true,
+      "observation_docs": [
+        "riscorux_affiliation",
+        "riscorux_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_002",
+      "answer": "Ethgalbel Laboratory",
+      "correct": true,
+      "observation_docs": [
+        "ethdunpir_affiliation",
+        "ethdunpir_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_003",
+      "answer": "Project Ondgalzan is affiliated with Dunquinfen Laboratory",
+      "correct": false,
+      "observation_docs": [
+        "ondgalzan_affiliation",
+        "ondgalzan_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_004",
+      "answer": "Galquingal Institute",
+      "correct": true,
+      "observation_docs": [
+        "ancormor_affiliation",
+        "ancormor_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_005",
+      "answer": "Galmelcor Council",
+      "correct": true,
+      "observation_docs": [
+        "tavtharfen_affiliation",
+        "tavtharfen_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_006",
+      "answer": "Corzanfen Institute",
+      "correct": true,
+      "observation_docs": [
+        "galmorux_affiliation",
+        "galmorux_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_007",
+      "answer": "Tr Tritaveth Council",
+      "correct": false,
+      "observation_docs": [
+        "zantharmor_affiliation",
+        "zantharmor_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_008",
+      "answer": "Bratrithar Institute",
+      "correct": true,
+      "observation_docs": [
+        "corlobra_affiliation",
+        "corlobra_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_009",
+      "answer": "Ondtrilo Foundation",
+      "correct": true,
+      "observation_docs": [
+        "ethfenux_affiliation",
+        "ethfenux_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_010",
+      "answer": "Sercorthar University",
+      "correct": true,
+      "observation_docs": [
+        "tririsux_affiliation",
+        "tririsux_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_011",
+      "answer": "the Duntrifen Institute",
+      "correct": true,
+      "observation_docs": [
+        "beltavbel_affiliation",
+        "beltavbel_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_012",
+      "answer": "Cordunan Foundation",
+      "correct": true,
+      "observation_docs": [
+        "uxlomor_affiliation",
+        "uxlomor_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_013",
+      "answer": "Bratriond Foundation",
+      "correct": true,
+      "observation_docs": [
+        "belondol_affiliation",
+        "belondol_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_014",
+      "answer": "Uxduntav Laboratory",
+      "correct": true,
+      "observation_docs": [
+        "beltharzan_affiliation",
+        "beltharzan_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_015",
+      "answer": "Uxondcor Foundation",
+      "correct": true,
+      "observation_docs": [
+        "tharveldun_affiliation",
+        "tharveldun_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_016",
+      "answer": "Locorbel University",
+      "correct": true,
+      "observation_docs": [
+        "kabraeth_affiliation",
+        "kabraeth_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_017",
+      "answer": "Quinloux Institute",
+      "correct": true,
+      "observation_docs": [
+        "anmelan_affiliation",
+        "anmelan_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_018",
+      "answer": "Velzanpir University",
+      "correct": true,
+      "observation_docs": [
+        "dunpirlo_affiliation",
+        "dunpirlo_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_019",
+      "answer": "Kaservel University",
+      "correct": true,
+      "observation_docs": [
+        "quinondris_affiliation",
+        "quinondris_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_020",
+      "answer": "Anpirmor University",
+      "correct": true,
+      "observation_docs": [
+        "tavuxux_affiliation",
+        "tavuxux_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_021",
+      "answer": "the Piruxdun Institute",
+      "correct": true,
+      "observation_docs": [
+        "zangallo_affiliation",
+        "zangallo_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_022",
+      "answer": "Antribel Laboratory",
+      "correct": true,
+      "observation_docs": [
+        "melmorol_affiliation",
+        "melmorol_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_023",
+      "answer": "the institution is Pirbelquin Council",
+      "correct": false,
+      "observation_docs": [
+        "olkabra_affiliation",
+        "olkabra_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_024",
+      "answer": null,
+      "correct": false,
+      "observation_docs": [
+        "lolool_affiliation",
+        "lolool_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_025",
+      "answer": "Melmelfen University",
+      "correct": true,
+      "observation_docs": [
+        "belondtri_affiliation",
+        "belondtri_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_026",
+      "answer": "Ondpireth Foundation",
+      "correct": true,
+      "observation_docs": [
+        "velmorbra_affiliation",
+        "velmorbra_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_027",
+      "answer": "Olcorond Council",
+      "correct": true,
+      "observation_docs": [
+        "dunolfen_affiliation",
+        "dunolfen_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_028",
+      "answer": "Uxzanquin Laboratory",
+      "correct": true,
+      "observation_docs": [
+        "tavpirfen_affiliation",
+        "tavpirfen_pi"
+      ]
+    },
+    {
+      "task_id": "twohop_dev_twohop_029",
+      "answer": "Pirtharvel Institute",
+      "correct": true,
+      "observation_docs": [
+        "sertharka_affiliation",
+        "sertharka_pi"
+      ]
+    }
+  ],
+  "checkpoint": "base",
+  "split": "twohop_dev",
+  "prompt_variant": "default",
+  "answer_format": "typed"
+}

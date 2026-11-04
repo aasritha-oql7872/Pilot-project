@@ -79,3 +79,21 @@ def test_twohop_split_is_isolated_and_answerable():
     train_test = {d["doc_id"] for s in SPLITS for d in CORPUS[s]}
     assert not {d["doc_id"] for d in corpus} & train_test
     assert not {t["gold"] for t in tasks} & {t["gold"] for s in SPLITS for t in TASKS[s]} - _years()
+
+
+def test_sealed_holdouts_are_disjoint_and_unmodified():
+    import json
+    from data.generate import file_hash
+    sealed = json.loads((DATA_DIR / "manifest_sealed.json").read_text())["splits"]
+    old_docs = {d["doc_id"] for s in ["train", "dev", "test", "twohop", "twohop_train", "twohop_dev"]
+                for d in read_jsonl(DATA_DIR / f"{s}_corpus.jsonl")}
+    old_text = " ".join(d["text"] for s in ["train", "dev", "test", "twohop", "twohop_train", "twohop_dev"]
+                        for d in read_jsonl(DATA_DIR / f"{s}_corpus.jsonl"))
+    for split, meta in sealed.items():
+        assert file_hash(DATA_DIR / f"{split}_tasks.jsonl") == meta["tasks_sha256"]
+        assert file_hash(DATA_DIR / f"{split}_corpus.jsonl") == meta["corpus_sha256"]
+        corpus = read_jsonl(DATA_DIR / f"{split}_corpus.jsonl")
+        assert not old_docs & {d["doc_id"] for d in corpus}
+        for t in read_jsonl(DATA_DIR / f"{split}_tasks.jsonl"):
+            if t["kind"] != "no_search":
+                assert t["subject"] not in old_text

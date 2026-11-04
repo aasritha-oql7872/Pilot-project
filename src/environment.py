@@ -15,6 +15,13 @@ from src.search_tool import Retriever, format_results
 MAX_SEARCHES = 2
 ANSWER_FORMAT = ("The answer must be only the requested value (a name, organization, city or year), "
                  "not a sentence: <answer>value</answer>.")
+# Diagnostic variant (not used by default): names the requested *type* of value.
+ANSWER_FORMATS = {
+    "default": ANSWER_FORMAT,
+    "typed": ("The answer must be only the requested value, not a sentence. Give exactly what the question asks "
+              "for: if it asks where someone works, answer with the institution, not a person's name: "
+              "<answer>value</answer>."),
+}
 SYSTEM_PROMPT = (
     "You answer questions about fictional research projects and people. You have no prior "
     "knowledge of them: the only sources of facts are the question itself and a private "
@@ -26,13 +33,24 @@ SYSTEM_PROMPT = (
 )
 
 
-def make_prompt(question):
-    return [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": question}]
+# Prompt-only ablation (condition B): same weights, extra instruction, no training.
+PROMPT_VARIANTS = {
+    "default": "",
+    "continue": (" Some questions need two searches: if a record names a person but does not say what the "
+                 "question asks about that person (for example where they work), search again using that "
+                 "person's name before answering. Do not answer with an intermediate name."),
+}
+
+
+def make_prompt(question, variant="default"):
+    return [{"role": "system", "content": SYSTEM_PROMPT + PROMPT_VARIANTS[variant]},
+            {"role": "user", "content": question}]
 
 
 class SearchEnv:
-    def __init__(self, retriever):
+    def __init__(self, retriever, answer_format=ANSWER_FORMAT):
         self.retriever = retriever
+        self.answer_format = answer_format
         self.reset()
 
     def reset(self, **task):
@@ -57,16 +75,16 @@ class SearchEnv:
         self.num_searches += 1
         results = self.retriever.search(query)
         self.retrieved.append([r["doc_id"] for r in results])
-        return format_results(results) + "\n\n" + ANSWER_FORMAT
+        return format_results(results) + "\n\n" + self.answer_format
 
 
 def score_episode(env, completion):
     return score(completion, env.task["gold"], env.num_searches)
 
 
-def make_env_factory(split):
+def make_env_factory(split, answer_format="default"):
     retriever = Retriever.for_split(split)  # one read-only index shared by all rollouts
-    return lambda: SearchEnv(retriever)
+    return lambda: SearchEnv(retriever, ANSWER_FORMATS[answer_format])
 
 
 def run_tool_calls(env, tool_calls):
@@ -107,21 +125,24 @@ def tool_suffix_ids(tokenizer, tool_messages, chat_template_kwargs):
 
 
 @torch.no_grad()
-def run_episode(model, tokenizer, env, task, max_completion_length, chat_template_kwargs):
-    """Greedy rollout with the training protocol: <=MAX_SEARCHES tool rounds and one
+def run_episode(model, tokenizer, env, task, max_completion_length, chat_template_kwargs, temperature=None,
+                prompt_variant="default"):
+    """Greedy rollout (or sampled, if `temperature` is given) with the training protocol: <=MAX_SEARCHES tool rounds and one
     max_completion_length budget shared by generated and tool tokens."""
     if getattr(tokenizer, "response_template", None) is None and getattr(tokenizer, "response_schema", None) is None:
         add_response_schema(tokenizer)
     chat_template_kwargs = {**chat_template_kwargs, "chat_template": rollout_chat_template(tokenizer)}
     env.reset(**task)
-    messages = make_prompt(task["question"])
+    messages = make_prompt(task["question"], prompt_variant)
     prompt_ids = tokenizer.apply_chat_template(messages, tools=[env.search], add_generation_prompt=True,
                                                tokenize=True, return_dict=False, **chat_template_kwargs)
     completion_ids, completion = [], []
     for rounds in range(MAX_SEARCHES + 1):
         context = torch.tensor([prompt_ids + completion_ids], device=model.device)
         out = model.generate(context, max_new_tokens=max_completion_length - len(completion_ids),
-                             do_sample=False, pad_token_id=tokenizer.pad_token_id)
+                             do_sample=temperature is not None,
+                             **({"temperature": temperature, "top_p": 1.0, "top_k": 0} if temperature else {}),
+                             pad_token_id=tokenizer.pad_token_id)
         new_ids = out[0, context.shape[1]:].tolist()
         turn = parse_response(tokenizer, new_ids, prefix=prompt_ids + completion_ids, tools=[env.search])
         completion_ids += new_ids

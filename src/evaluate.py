@@ -72,27 +72,30 @@ def main():
     parser.add_argument("--split", default="test")
     parser.add_argument("--output", required=True)
     parser.add_argument("--config", default="configs/train.yaml")
+    parser.add_argument("--prompt-variant", default="default", help="default | continue (prompt-only ablation)")
+    parser.add_argument("--answer-format", default=None, choices=["default", "typed"], help="override config")
     parser.add_argument("--limit", type=int, default=None, help="evaluate only the first N tasks")
     args = parser.parse_args()
 
     cfg = yaml.safe_load(Path(args.config).read_text())
     torch.manual_seed(cfg["seed"])
     model, tokenizer = load_policy(cfg["model"], args.checkpoint)
-    env = make_env_factory(args.split)()
+    env = make_env_factory(args.split, args.answer_format or cfg.get("answer_format", "default"))()
     tasks = read_jsonl(DATA_DIR / f"{args.split}_tasks.jsonl")[: args.limit]
 
     traces = []
     for i, task in enumerate(tasks):
         prompt, completion, result = run_episode(model, tokenizer, env, task,
                                                  cfg["grpo"]["max_completion_length"],
-                                                 cfg["chat_template_kwargs"])
+                                                 cfg["chat_template_kwargs"],
+                                                 prompt_variant=args.prompt_variant)
         trace = make_trace(f"eval_{args.checkpoint}", task, cfg["model"], None, cfg["seed"],
                            prompt, completion, env, result)
         traces.append(validate_trace(trace))
         print(f"[{i + 1}/{len(tasks)}] {task['task_id']} searches={result['num_searches']} "
               f"answer={result['final_answer']!r} gold={task['gold']!r} correct={result['correct']}")
 
-    report = {"checkpoint": args.checkpoint, "split": args.split, "decoding": "greedy",
+    report = {"checkpoint": args.checkpoint, "prompt_variant": args.prompt_variant, "answer_format": args.answer_format or cfg.get("answer_format", "default"), "split": args.split, "decoding": "greedy",
               "corpus_sha256": file_hash(DATA_DIR / f"{args.split}_corpus.jsonl"),
               "metrics": summarize(traces), "episodes": traces}
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)

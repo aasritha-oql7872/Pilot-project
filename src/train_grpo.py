@@ -9,18 +9,20 @@ import csv
 import json
 import platform
 import subprocess
+import time
 from importlib.metadata import version
 from pathlib import Path
 
 import torch
 import yaml
 from datasets import Dataset
-from peft import LoraConfig
-from transformers import TrainerCallback
+from peft import LoraConfig, PeftModel
+from transformers import AutoModelForCausalLM, TrainerCallback
 from trl import GRPOConfig, GRPOTrainer
 
 from data.generate import DATA_DIR, file_hash, read_jsonl
 from src.environment import make_env_factory, make_prompt, score_episode
+from src.reward_evidence import EvidenceRewardConfig, shaped_result
 from src.trace_schema import append_traces, make_trace
 
 
@@ -70,9 +72,10 @@ class MetricsCSV(TrainerCallback):
                 writer.writerows(self.rows)
 
 
-def make_reward_func(trace_path, run_id, model_name, seed):
+def make_reward_func(trace_path, run_id, model_name, seed, reward_cfg=EvidenceRewardConfig()):
     def searchlite_reward(completions, environments, trainer_state, log_metric, **kwargs):
-        results = [score_episode(env, c) for env, c in zip(environments, completions)]
+        results = [shaped_result(score_episode(env, c), env.task, env.retrieved, reward_cfg)
+                   for env, c in zip(environments, completions)]
         traces = [make_trace(run_id, env.task, model_name, trainer_state.global_step, seed,
                              env.task["prompt"], c, env, r)
                   for env, c, r in zip(environments, completions, results)]
@@ -81,6 +84,12 @@ def make_reward_func(trace_path, run_id, model_name, seed):
         log_metric("searchlite/correct", sum(r["correct"] for r in results) / n)
         log_metric("searchlite/searches_per_episode", sum(r["num_searches"] for r in results) / n)
         log_metric("searchlite/invalid_per_episode", sum(r["num_invalid"] for r in results) / n)
+        multi = [r for r, env in zip(results, environments) if len(env.task["evidence_doc_ids"]) >= 2]
+        if multi:  # two-hop rollouts only
+            log_metric("searchlite/twohop_first_evidence", sum(r["first_evidence_found"] for r in multi) / len(multi))
+            log_metric("searchlite/twohop_complete_chain", sum(r["complete_evidence_chain"] for r in multi) / len(multi))
+            log_metric("searchlite/twohop_searches", sum(r["num_searches"] for r in multi) / len(multi))
+            log_metric("searchlite/twohop_correct", sum(r["correct"] for r in multi) / len(multi))
         log_metric("searchlite/answered", sum(r["final_answer"] is not None for r in results) / n)
         return [r["reward"] for r in results]
     return searchlite_reward
@@ -95,6 +104,7 @@ def main():
     parser.add_argument("--config", default="configs/train.yaml")
     parser.add_argument("--output", default=None)
     parser.add_argument("--smoke", action="store_true")
+    parser.add_argument("--dry-run", action="store_true", help="build the trainer and exit (no training)")
     parser.add_argument("--seed", type=int, default=None, help="override the config seed")
     args = parser.parse_args()
 
@@ -102,6 +112,8 @@ def main():
     if args.seed is not None:
         cfg["seed"] = args.seed
     out = Path(args.output or f"outputs/{cfg['run_id']}")
+    if (out / "adapter").exists():
+        raise SystemExit(f"{out}/adapter already exists; refusing to overwrite a trained model. Use a new --output.")
     out.mkdir(parents=True, exist_ok=True)
     (out / "config_snapshot.yaml").write_text(yaml.safe_dump(cfg, sort_keys=False))
     trace_path = out / "trajectories.jsonl"
@@ -109,24 +121,36 @@ def main():
 
     train_splits = cfg.get("train_splits", ["train"])
     use_bf16 = torch.cuda.is_available() and torch.cuda.is_bf16_supported()
+    dtype = torch.bfloat16 if use_bf16 else torch.float32
+    model, peft_config = cfg["model"], LoraConfig(task_type="CAUSAL_LM", **cfg["lora"])
+    if cfg.get("init_adapter"):  # continue from a supervised warm-start adapter (same LoRA shape)
+        base = AutoModelForCausalLM.from_pretrained(cfg["model"], dtype=dtype)
+        model, peft_config = PeftModel.from_pretrained(base, cfg["init_adapter"], is_trainable=True), None
     grpo_args = GRPOConfig(
         output_dir=str(out / "checkpoints"), seed=cfg["seed"], bf16=use_bf16,
         chat_template_kwargs=cfg["chat_template_kwargs"],
-        model_init_kwargs={"dtype": torch.bfloat16 if use_bf16 else torch.float32},
+        model_init_kwargs=None if peft_config is None else {"dtype": dtype},
         **cfg["grpo"])
     trainer = GRPOTrainer(
-        model=cfg["model"],
+        model=model,
         args=grpo_args,
         train_dataset=task_dataset(train_splits),
-        reward_funcs=make_reward_func(trace_path, out.name, cfg["model"], cfg["seed"]),
-        environment_factory=make_env_factory("+".join(train_splits)),
-        peft_config=LoraConfig(task_type="CAUSAL_LM", **cfg["lora"]),
+        reward_funcs=make_reward_func(trace_path, out.name, cfg["model"], cfg["seed"],
+                                       EvidenceRewardConfig.from_dict(cfg.get("reward"))),
+        environment_factory=make_env_factory("+".join(train_splits), cfg.get("answer_format", "default")),
+        peft_config=peft_config,
         callbacks=[MetricsCSV(out / "train_metrics.csv")],
     )
     trainable = sum(p.numel() for p in trainer.model.parameters() if p.requires_grad)
     before = lora_params(trainer.model)
+    if args.dry_run:
+        print(json.dumps({"dry_run": True, "trainable_params": trainable, "lora_tensors": len(before),
+                          "init_adapter": cfg.get("init_adapter")}))
+        return
 
+    t0 = time.time()
     trainer.train()
+    train_seconds = round(time.time() - t0)
 
     # Gate: LoRA weights must have moved, otherwise no real policy update happened.
     after = lora_params(trainer.model)
@@ -134,7 +158,8 @@ def main():
     trainer.save_model(str(out / "adapter"))
     extra = {"run_id": out.name, "model": cfg["model"], "trainable_params": trainable,
              "lora_tensors": len(before), "lora_max_abs_delta": max_delta,
-             "optimizer_steps": trainer.state.global_step,
+             "optimizer_steps": trainer.state.global_step, "train_seconds": train_seconds,
+             "reward_mode": cfg.get("reward", {}).get("mode", "original"),
              "train_splits": "+".join(train_splits),
              "train_corpus_sha256": file_hash(DATA_DIR / "train_corpus.jsonl")}
     if torch.cuda.is_available():

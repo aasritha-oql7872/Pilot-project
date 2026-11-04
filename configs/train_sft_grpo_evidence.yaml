@@ -1,0 +1,39 @@
+# Condition D: as train_sft_grpo.yaml (condition C) but with the evidence-aware reward.
+run_id: sft_grpo_evidence
+model: Qwen/Qwen3-0.6B
+seed: 42
+train_splits: [train, twohop_train]
+answer_format: typed
+init_adapter: outputs/study_sft/B/adapter
+chat_template_kwargs: {enable_thinking: false}
+
+reward:
+  mode: evidence      # original | evidence | potential
+  alpha: 0.10
+  beta: 0.30
+  onehop_bonus: false
+
+lora:
+  r: 8
+  lora_alpha: 16
+  lora_dropout: 0.05
+  target_modules: [q_proj, v_proj]
+
+grpo:
+  max_steps: 60
+  per_device_train_batch_size: 16
+  gradient_accumulation_steps: 1
+  num_generations: 4
+  learning_rate: 2.0e-5
+  temperature: 0.7
+  max_completion_length: 384
+  max_tool_calling_iterations: 2
+  beta: 0.0
+  logging_steps: 1
+  save_strategy: "no"
+  report_to: none
+
+smoke:
+  max_steps: 3
+  per_device_train_batch_size: 8
+  max_completion_length: 192

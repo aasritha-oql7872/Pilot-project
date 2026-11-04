@@ -1,0 +1,84 @@
+{
+  "mode": "forced_two_searches",
+  "n": 15,
+  "accuracy": 0.3333333333333333,
+  "episodes": [
+    {
+      "task_id": "twohop_dev_twohop_000",
+      "answer": "Melduntav Laboratory",
+      "correct": true
+    },
+    {
+      "task_id": "twohop_dev_twohop_001",
+      "answer": "Uxvelmel Foundation",
+      "correct": true
+    },
+    {
+      "task_id": "twohop_dev_twohop_002",
+      "answer": "Ethgalbel Laboratory",
+      "correct": true
+    },
+    {
+      "task_id": "twohop_dev_twohop_003",
+      "answer": "Project Ondgalzan is affiliated with Dunquinfen Laboratory",
+      "correct": false
+    },
+    {
+      "task_id": "twohop_dev_twohop_004",
+      "answer": "Galquingal Institute",
+      "correct": true
+    },
+    {
+      "task_id": "twohop_dev_twohop_005",
+      "answer": "Yuki Braser",
+      "correct": false
+    },
+    {
+      "task_id": "twohop_dev_twohop_006",
+      "answer": "Corzanfen Institute",
+      "correct": true
+    },
+    {
+      "task_id": "twohop_dev_twohop_007",
+      "answer": "Felix Lobra",
+      "correct": false
+    },
+    {
+      "task_id": "twohop_dev_twohop_008",
+      "answer": "Nadia Tharfen",
+      "correct": false
+    },
+    {
+      "task_id": "twohop_dev_twohop_009",
+      "answer": "Yuki Risfen",
+      "correct": false
+    },
+    {
+      "task_id": "twohop_dev_twohop_010",
+      "answer": "Sana Fenvel",
+      "correct": false
+    },
+    {
+      "task_id": "twohop_dev_twohop_011",
+      "answer": "Omar Dunol",
+      "correct": false
+    },
+    {
+      "task_id": "twohop_dev_twohop_012",
+      "answer": "Marco Serond",
+      "correct": false
+    },
+    {
+      "task_id": "twohop_dev_twohop_013",
+      "answer": "Ravi Anser",
+      "correct": false
+    },
+    {
+      "task_id": "twohop_dev_twohop_014",
+      "answer": "Iris Belthar",
+      "correct": false
+    }
+  ],
+  "checkpoint": "base",
+  "split": "twohop_dev"
+}

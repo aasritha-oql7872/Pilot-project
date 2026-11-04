@@ -48,3 +48,7 @@ tmp/
 # Local editor / machine configuration
 .vscode/
 .idea/
+
+# Study write-ups (explicitly tracked besides README.md)
+!/PILOT_FINAL_STATUS.md
+!/REPORT.md

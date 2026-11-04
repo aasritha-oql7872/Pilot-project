@@ -1,0 +1,20 @@
+# Condition B: supervised warm-start of the policy on correct trajectories built from train + twohop_train only.
+run_id: sft
+model: Qwen/Qwen3-0.6B
+seed: 42
+answer_format: typed        # tool-output reminder used when generating trajectories (and in every matched eval)
+chat_template_kwargs: {enable_thinking: false}
+
+lora:
+  r: 8
+  lora_alpha: 16
+  lora_dropout: 0.05
+  target_modules: [q_proj, v_proj]
+
+sft:
+  n_lookup: 80      # one-hop examples to limit forgetting
+  n_direct: 40      # no-search (answer from the prompt) examples
+  epochs: 3
+  batch_size: 8
+  lr: 2.0e-4
+  max_len: 768

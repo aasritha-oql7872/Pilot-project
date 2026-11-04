@@ -1,0 +1,16 @@
+{
+  "mode": "explore",
+  "temperature": 0.7,
+  "rollouts": 80,
+  "search_count_distribution": {
+    "0": 0.0,
+    "1": 1.0,
+    "2": 0.0
+  },
+  "second_search_rate": 0.0,
+  "complete_chain_rate": 0.0,
+  "correct_rate": 0.0,
+  "tasks_with_any_two_search_rollout": 0,
+  "checkpoint": "base",
+  "split": "twohop_dev"
+}
