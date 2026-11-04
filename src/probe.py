@@ -35,12 +35,15 @@ def explore(model, tok, cfg, split, samples, temperature, limit, variant="defaul
                                   cfg["chat_template_kwargs"], temperature=temperature, prompt_variant=variant)
             got = {d for ids in env.retrieved for d in ids}
             rows.append({"task_id": t["task_id"], "searches": r["num_searches"], "correct": r["correct"],
-                         "complete_chain": set(t["evidence_doc_ids"]) <= got})
+                         "complete_chain": set(t["evidence_doc_ids"]) <= got, "invalid": r["num_invalid"] > 0,
+                         "distinct_docs": len(got), "answered": r["final_answer"] is not None})
     n = len(rows)
     dist = {k: sum(r["searches"] == k for r in rows) / n for k in (0, 1, 2)}
     return {"mode": "explore", "temperature": temperature, "rollouts": n, "search_count_distribution": dist,
             "second_search_rate": dist[2], "complete_chain_rate": sum(r["complete_chain"] for r in rows) / n,
             "correct_rate": sum(r["correct"] for r in rows) / n,
+            "invalid_rate": sum(r["invalid"] for r in rows) / n, "answered_rate": sum(r["answered"] for r in rows) / n,
+            "mean_distinct_docs": sum(r["distinct_docs"] for r in rows) / n,
             "tasks_with_any_two_search_rollout": len({r["task_id"] for r in rows if r["searches"] == 2})}
 
 
@@ -91,12 +94,14 @@ def main():
     parser.add_argument("--prompt-variant", default="default")
     parser.add_argument("--answer-format", default="default", choices=["default", "typed"])
     parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument("--seed", type=int, default=None, help="override the config seed")
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
     cfg = yaml.safe_load(Path(args.config).read_text())
-    torch.manual_seed(cfg["seed"])
+    torch.manual_seed(cfg["seed"] if args.seed is None else args.seed)
     model, tok = load_policy(cfg["model"], args.checkpoint)
-    res = (explore(model, tok, cfg, args.split, args.samples, args.temperature, args.limit, args.prompt_variant) if args.mode == "explore"
+    res = (explore(model, tok, cfg, args.split, args.samples, args.temperature, args.limit, args.prompt_variant,
+                   args.answer_format) if args.mode == "explore"
            else forced(model, tok, cfg, args.split, args.limit, args.prompt_variant, args.answer_format))
     res.update(checkpoint=args.checkpoint, split=args.split, prompt_variant=args.prompt_variant, answer_format=args.answer_format)
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)

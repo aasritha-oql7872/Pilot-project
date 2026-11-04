@@ -1,0 +1,13 @@
+{
+  "selected_headline_method": "B (SFT-only warm-start, outputs/study_sft/B/adapter)",
+  "decided_on": "development splits only (dev, twohop_dev)",
+  "reasons": [
+    "C and D differ from B by 1/60 one-hop dev tasks and are identical to each other (max|C-D| = 0)",
+    "GRPO moved the adapter by max|B-C| = 2.6e-4; 95% of training groups had zero reward std",
+    "GRPO adds ~7.5 min of compute for no demonstrated gain"
+  ],
+  "rule": "The headline method is not changed after sealed results are seen. C and D are reported for completeness, not selected.",
+  "sealed_splits": ["final", "twohop_final"],
+  "recorded_in_repo_on": "2026-11-03",
+  "note": "The sealed evaluation script also writes outputs/study_sft/FROZEN (on Drive) before any sealed evaluation runs. If the earlier ad-hoc sealed cell was already run, that FROZEN file's timestamp is the authoritative one."
+}

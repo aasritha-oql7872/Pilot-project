@@ -26,12 +26,24 @@ from src.reward_evidence import EvidenceRewardConfig, shaped_result
 from src.trace_schema import append_traces, make_trace
 
 
-def load_config(path, smoke):
+def apply_overrides(cfg, overrides):
+    """Dotted `key.sub=value` overrides (value parsed as YAML), recorded in config_snapshot.yaml."""
+    for item in overrides or []:
+        key, value = item.split("=", 1)
+        node = cfg
+        *path, leaf = key.split(".")
+        for part in path:
+            node = node.setdefault(part, {})
+        node[leaf] = yaml.safe_load(value)
+    return cfg
+
+
+def load_config(path, smoke, overrides=None):
     cfg = yaml.safe_load(Path(path).read_text())
     if smoke:
         cfg["grpo"].update(cfg["smoke"])
         cfg["run_id"] = "smoke"
-    return cfg
+    return apply_overrides(cfg, overrides)
 
 
 def task_dataset(splits):
@@ -106,9 +118,10 @@ def main():
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--dry-run", action="store_true", help="build the trainer and exit (no training)")
     parser.add_argument("--seed", type=int, default=None, help="override the config seed")
+    parser.add_argument("--override", nargs="*", default=[], help="dotted config overrides, e.g. grpo.temperature=1.2")
     args = parser.parse_args()
 
-    cfg = load_config(args.config, args.smoke)
+    cfg = load_config(args.config, args.smoke, args.override)
     if args.seed is not None:
         cfg["seed"] = args.seed
     out = Path(args.output or f"outputs/{cfg['run_id']}")

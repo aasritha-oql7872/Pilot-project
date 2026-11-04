@@ -1,0 +1,24 @@
+# Condition E: the same SFT recipe and data as configs/sft.yaml (condition B) but saving intermediate adapters,
+# so an *early* warm-start (partial exploration, not yet at ceiling) can be selected on development data.
+# Only data/train and data/twohop_train are used. Final-step adapter should reproduce B up to GPU nondeterminism.
+run_id: sft_early
+model: Qwen/Qwen3-0.6B
+seed: 42
+answer_format: typed
+chat_template_kwargs: {enable_thinking: false}
+
+lora:
+  r: 8
+  lora_alpha: 16
+  lora_dropout: 0.05
+  target_modules: [q_proj, v_proj]
+
+sft:
+  n_lookup: 80
+  n_direct: 40
+  epochs: 3
+  batch_size: 8
+  lr: 2.0e-4
+  max_len: 768
+  save_every: 3              # steps 3, 6, ..., 75
+  save_steps: [1, 2, 4, 5]   # plus very early checkpoints

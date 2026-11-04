@@ -1,37 +1,39 @@
-# Pilot final status (branch experiment/evidence-aware-grpo; nothing committed, pushed, or PR'd)
+# Pilot final status (2026-11-03)
 
-## Implemented and tested (54 tests pass)
-* Reward: original (untouched), evidence-aware, potential-difference (`src/reward_evidence.py`, 12 tests incl. no gold leakage).
-* Diagnostics: retrieval audit, failure taxonomy, sampled-exploration and forced-second-search probes (`src/audit.py`, `src/probe.py`).
-* MDP: finite-horizon Bellman reference, **oracle-state** (observes gold evidence), 3 tests.
-* **SFT warm-start** (`src/sft_data.py`, `src/sft_tokens.py`, `src/train_sft.py`, `configs/sft.yaml`): trajectories from train + twohop_train only with real
-  tool observations; loss only on assistant tokens (tests: 3 supervised spans per two-hop example, tool/system/user text never supervised,
-  loss = mean CE over supervised tokens, LoRA gradients nonzero). GRPO can start from the SFT adapter (`init_adapter`, trainer construction verified).
-* `answer_format: typed` option (justified by the answer-extraction diagnosis), `--prompt-variant`, overwrite guards in both trainers, sealed holdouts `final` / `twohop_final`.
-* Pipeline: `run_sft_study.sh` + `SearchLite_RL_SFT_Study.ipynb` (gate after B, FINAL needs a FROZEN file). No `rm`/`rmtree` anywhere in the new scripts.
+Branch `experiment/evidence-aware-grpo`, nothing committed or pushed from this session. 66 tests pass on CPU.
+Colab GPU outputs are on Drive (`MyDrive/SearchLite-RL/`), not in the repository.
 
-## Executed locally (base model, MPS) - evidence in results/audit/
-* Retrieval of the full chain with two valid queries: 100% (dev 30, test 60).
-* Base sampling: 0 / 80 second searches at T=0.7 and 0 / 80 at T=1.0.
-* Forced second search, all 30 dev tasks: 10/30 with the default reminder (19 answered with the researcher's name, 1 sentence);
-  26/30 with the typed reminder (0 wrong-field; 4 format problems).
-* Real-model SFT forward/backward: 59 of 607 tokens supervised, nonzero LoRA gradients.
+## Done and verified
+* [local] Audit: retrieval is not the failure (100% two-query chain); base never samples a second search (0/160).
+* [local] Answer-extraction fix: forced-search accuracy 10/30 (default reminder) -> 26/30 (typed reminder).
+* [Colab, pasted] Dev results: A 0/30 two-hop; B/C/D 30/30; one-hop 57/59/60 of 60 (A-typed/B/C=D). GRPO after SFT
+  changed nothing measurable (95% zero-variance groups, adapter moved 2.6e-4, C and D identical).
+* Headline model frozen as B on dev evidence only (`results/frozen_selection.json`).
+* Fixed: summary-order bug in `run_sft_study.sh`; Wilson intervals replace the bootstrap interval; **explore-probe defect**
+  (`--answer-format` was ignored), so the earlier sampled B/C/D numbers (73.8% / 72.1% second search; 41% / 38% correct) are
+  confounded by a reminder mismatch and must be re-run (notebook cell 7).
 
-## Reported from earlier Colab runs (output files are not on this machine)
-v1 collapse (37 -> 38%), v2 98% test (98/95/97), two-hop 0/60 for base, one-hop and mixed-GRPO models.
+## Implemented and unit-tested, NOT yet run (needs Colab)
+| Item | Command | Gate / output |
+|---|---|---|
+| Verify reported numbers vs saved JSONs | `python -m src.verify_reported outputs/study_sft` | MATCH/MISMATCH per cell |
+| Sealed final evaluation (once) | `bash run_sealed.sh` | `summary_sealed.md`, paired tests, audit |
+| E0/E1/E2 partial SFT + GRPO | `bash run_early_study.sh` | exits 3 if no checkpoint has a 20-70% sampled second-search rate |
+| F0-F3 (F4 optional) RL-only exploration | `bash run_rl_only_study.sh` | 30-step pilot per condition; full run only if a pilot has a two-hop second search |
+| Reward-variance / exploration statistics | `python -m src.traj_stats RUN_DIR` | per-window second-search rate, informative groups, one-hop controls |
+| Optimization diagnostics | `python -m src.train_diag RUN --init ADAPTER` | grad norms, zero-variance fraction, weight change |
+| Manifest | `python -m src.manifest --roots ... --out ...` | run -> init/reward/seed/checkpoint/decoding/split |
+| Demo | `python demo.py --a eval_A.json --b eval_B.json` | question -> search -> record -> search -> answer |
 
-## Audit of earlier scripts (done)
-Found and removed `rm -rf outputs` and `rm -rf` of the Drive backup in the old `SearchLite_RL_Colab.ipynb` (now timestamped copies).
-`train_grpo.py` now refuses to write over an existing adapter. The sealed splits are referenced only inside the `FINAL=1` branch
-(plus tests); SFT data is asserted to come from train/twohop_train.
+## Not done / blocked
+* No sealed number, no E/F number exists yet. None is quoted anywhere.
+* Local trainer-build dry-run for the new F3 config was NOT executed (Mac swap ~98% full); config parsing and overrides were
+  checked on CPU. The Colab pilot (30 steps) is the first end-to-end test of that config.
+* The old Colab outputs for v1/v2/seeds/mixed are still reported-only.
+* README.md still says "no performance results" and needs a final pass after the sealed numbers arrive.
 
-## Not run / blocked (no GPU results exist)
-* B (SFT only), C (SFT+GRPO), D (SFT+evidence GRPO), A re-evaluation on dev, MDP tables, compute/VRAM numbers: need a Colab L4.
-  Local training was not attempted at scale (Mac swap 97% full).
-* The 98% artifacts are unverified here. The sealed holdouts have not been evaluated.
-* If the B gate fails (second-search rate < 50% or two-hop dev accuracy < 30%) the study stops; GRPO is then not run.
-
-## Next
-Run `SearchLite_RL_SFT_Study.ipynb`; paste the tail of the log and `outputs/study_sft/summary_dev.md`. Then fill REPORT.md sections 9 and the case studies.
-Housekeeping: REPORT.md, PILOT_FINAL_STATUS.md are un-ignored in `.gitignore`; `results/audit/` holds small evidence files; the earlier
-`run_evidence_study.sh` / `SearchLite_RL_Evidence_Study.ipynb` are superseded by the SFT study (kept, unmodified, not required).
+## Order of work (deadline 2026-11-09)
+1. Push the branch (user), open `SearchLite_RL_Final_Study.ipynb`, run cells 1-4: verify, then sealed evaluation. Paste
+   `summary_sealed.md` -> fill REPORT 5.4.
+2. Cell 7 (typed explore probes) and cell 5 (E study). 3. Cell 6 (F study, pilots gate the full runs).
+4. Fill REPORT 5.5/8/10, plots (`python -m src.plot_metrics --run RUN --output RUN/figures`), finish slides.

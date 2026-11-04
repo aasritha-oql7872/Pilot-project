@@ -8,7 +8,20 @@ import argparse
 import json
 from pathlib import Path
 
-from src.compare import bootstrap_ci
+from math import sqrt
+
+from src.audit import episode_audit
+
+
+def wilson(k, n, z=1.96):
+    """95% Wilson score interval for a binomial proportion. Unlike a bootstrap it is not degenerate at 0% or
+    100%: 30/30 gives [88.6%, 100%], i.e. it does not claim perfect population accuracy."""
+    if n == 0:
+        return None, None
+    p = k / n
+    centre = (p + z * z / (2 * n)) / (1 + z * z / n)
+    half = z * sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / (1 + z * z / n)
+    return max(0.0, centre - half), min(1.0, centre + half)
 
 
 def row(label, path):
@@ -18,8 +31,11 @@ def row(label, path):
     need = [e for e in eps if e["kind"] != "no_search"]
     got = lambda e: {d for ids in e["retrieved_doc_ids"] for d in ids}
     frac = lambda xs, f: (sum(map(f, xs)) / len(xs)) if xs else None
-    lo, hi = bootstrap_ci([float(e["correct"]) for e in eps])
-    return {"condition": label, "split": rep["split"], "n": len(eps),
+    k = sum(bool(e["correct"]) for e in eps)
+    lo, hi = wilson(k, len(eps))
+    wrong_field = episode_audit(path)["answered_with_intermediate_entity"] if two else None
+    return {"condition": label, "split": rep["split"], "n": len(eps), "k": k,
+            "wrong_field": wrong_field, "invalid_per_ep": sum(e["num_invalid"] for e in eps) / len(eps),
             "accuracy": frac(eps, lambda e: e["correct"]), "ci": (lo, hi),
             "first_evidence": frac(need, lambda e: e["evidence_doc_ids"][0] in got(e)),
             "complete_chain": frac(need, lambda e: set(e["evidence_doc_ids"]) <= got(e)),
@@ -43,14 +59,14 @@ def main():
     parser.add_argument("--compute", nargs="*", default=[], help="label=training run dir")
     args = parser.parse_args()
     rows = [row(*e.split("=", 1)) for e in args.entries]
-    head = ("| Condition | Split | n | Accuracy [95% CI] | 1st evidence | Full chain | 2nd search | Premature stop "
-            "| Correct given full chain | Decision acc | Invalid | Searches | Reward |\n|" + "---|" * 12)
+    head = ("| Condition | Split | k/n | Accuracy [95% Wilson CI] | 1st evidence | Full chain | 2nd search | Premature stop "
+            "| Correct given full chain | Wrong field (2-hop) | Decision acc | Invalid | Invalid/ep | Searches | Reward |\n|" + "---|" * 14)
     lines = [head]
     for r in rows:
-        lines.append(f"| {r['condition']} | {r['split']} | {r['n']} | {fmt(r['accuracy'])} "
+        lines.append(f"| {r['condition']} | {r['split']} | {r['k']}/{r['n']} | {fmt(r['accuracy'])} "
                      f"[{fmt(r['ci'][0])}, {fmt(r['ci'][1])}] | {fmt(r['first_evidence'])} | {fmt(r['complete_chain'])} | "
-                     f"{fmt(r['second_search'])} | {fmt(r['premature_stop'])} | {fmt(r['use_second_record'])} | {fmt(r['decision_acc'])} | "
-                     f"{fmt(r['invalid'])} | {fmt(r['mean_searches'], False)} | {fmt(r['mean_reward'], False)} |")
+                     f"{fmt(r['second_search'])} | {fmt(r['premature_stop'])} | {fmt(r['use_second_record'])} | {fmt(r['wrong_field'])} | {fmt(r['decision_acc'])} | "
+                     f"{fmt(r['invalid'])} | {fmt(r['invalid_per_ep'], False)} | {fmt(r['mean_searches'], False)} | {fmt(r['mean_reward'], False)} |")
     text = "\n".join(lines)
     for entry in args.compute:  # label=run_dir -> training time / GPU memory from system_info.txt
         label, d = entry.split("=", 1)

@@ -74,13 +74,14 @@ for NAME in B D; do   # ORACLE-STATE reference (uses gold evidence ids): not com
       --output $S/mdp_oracle_$NAME.json > /dev/null || echo "mdp $NAME: skipped (state without observations)"
 done
 
-python -m src.summarize_study --out $S/summary_dev.md --compute B=$S/B C=$S/C D=$S/D \
+python -m src.summarize_study --out $S/summary_dev.md \
   "base (default reminder)=$S/eval_dev_base_default.json" "A one-hop GRPO (default reminder)=$S/eval_dev_A_default.json" \
   "A (typed reminder)=$S/eval_dev_A.json" "B SFT only=$S/eval_dev_B.json" "C SFT+GRPO orig=$S/eval_dev_C.json" \
   "D SFT+GRPO evidence=$S/eval_dev_D.json" \
   "base (default reminder)=$S/eval_twohop_dev_base_default.json" "A one-hop GRPO (default reminder)=$S/eval_twohop_dev_A_default.json" \
   "A (typed reminder)=$S/eval_twohop_dev_A.json" "B SFT only=$S/eval_twohop_dev_B.json" \
-  "C SFT+GRPO orig=$S/eval_twohop_dev_C.json" "D SFT+GRPO evidence=$S/eval_twohop_dev_D.json"
+  "C SFT+GRPO orig=$S/eval_twohop_dev_C.json" "D SFT+GRPO evidence=$S/eval_twohop_dev_D.json" \
+  --compute B=$S/B C=$S/C D=$S/D
 for NAME in B C D; do python -m src.plot_metrics --run $S/$NAME --output $S/$NAME/figures || true; done
 
 # ---- sealed holdouts: once, after the method is frozen -------------------------------------------------------

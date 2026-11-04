@@ -82,6 +82,8 @@ def main():
             step += 1
             rows.append({"step": step, "epoch": epoch, "loss": round(loss.item(), 5)})
             print(rows[-1], flush=True)
+            if s.get("save_every") and (step % s["save_every"] == 0 or step in s.get("save_steps", [])):
+                model.save_pretrained(out / f"ckpt_step{step:03d}")  # intermediate adapters (never overwritten)
     delta = max((p.detach() - before[n]).abs().max().item() for n, p in model.named_parameters() if n in before)
     model.save_pretrained(out / "adapter")
     with open(out / "train_metrics.csv", "w", newline="") as f:

@@ -81,3 +81,30 @@ def test_no_gold_leakage_to_model_visible_text():
     visible = SYSTEM_PROMPT + make_prompt(task["question"])[1]["content"] + env.search("Project Serethvel principal investigator")
     assert "serethvel_affiliation" not in visible.replace("serethvel_pi", "") and "evidence_doc_ids" not in visible
     assert task["gold"] not in visible
+
+
+EXPLORE = EvidenceRewardConfig(mode="explore", alpha=0.1, beta=0.3, gamma=0.1)
+
+
+def test_explore_bonus_only_for_new_second_search_from_partial_state():
+    # partial evidence then a different second search: alpha + gamma (the second search found nothing new)
+    r = shaped_result(result("X", "Bob", 2), TASK, [["a_pi", "z"], ["y", "w"]], EXPLORE)
+    assert r["second_search_from_partial"] and r["evidence_bonus"] == 0.2
+    # completing the chain: alpha + beta + gamma
+    r = shaped_result(result("X Council", "X Council", 2), TASK, [["a_pi", "z"], ["a_affiliation"]], EXPLORE)
+    assert r["evidence_bonus"] == 0.5
+
+
+def test_explore_bonus_not_given_for_repeated_search_or_single_search():
+    rep = shaped_result(result("X", "Bob", 2), TASK, [["a_pi", "z"], ["a_pi", "z"]], EXPLORE)
+    assert not rep["second_search_from_partial"] and rep["evidence_bonus"] == 0.1
+    one = shaped_result(result("X", "Bob", 1), TASK, [["a_pi", "z"]], EXPLORE)
+    assert not one["second_search_from_partial"] and one["evidence_bonus"] == 0.1
+
+
+def test_explore_bonus_never_applies_to_onehop_or_nosearch():
+    assert shaped_result(result("1999", "1999", 2), ONEHOP, [["b_year"], ["q"]], EXPLORE)["evidence_bonus"] == 0
+    assert shaped_result(result("1999", "1999", 0), NOSEARCH, [], EXPLORE)["evidence_bonus"] == 0
+    # a second search that does not follow partial evidence (first search already had everything) earns no gamma
+    full = shaped_result(result("X", "X", 2), TASK, [["a_pi", "a_affiliation"], ["q"]], EXPLORE)
+    assert not full["second_search_from_partial"]

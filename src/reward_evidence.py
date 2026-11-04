@@ -14,11 +14,12 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class EvidenceRewardConfig:
-    mode: str = "original"       # original | evidence | potential
+    mode: str = "original"       # original | evidence | potential | explore
     alpha: float = 0.10          # first required document retrieved
     beta: float = 0.30           # whole required chain retrieved
     onehop_bonus: bool = False   # also shape single-document (lookup) tasks
     potential_scale: float = 0.40  # c in Phi(s) = c * (#required docs held / #required)
+    gamma: float = 0.10          # explore mode: bonus for a valid, non-duplicate second search from partial evidence
 
     @classmethod
     def from_dict(cls, d):
@@ -55,6 +56,16 @@ def potential_bonus(task, retrieved, scale):
     return total
 
 
+def second_search_from_partial(task, retrieved):
+    """True iff a second executed search followed a first search that left the evidence chain incomplete,
+    and the second search returned a different result list than the first (a repeated query earns nothing).
+    This depends on the state before the action, not on whether the second search succeeded."""
+    required = set(task.get("evidence_doc_ids") or [])
+    if len(required) < 2 or len(retrieved) < 2:
+        return False
+    return not required <= set(retrieved[0]) and list(retrieved[1]) != list(retrieved[0])
+
+
 def shaped_result(result, task, retrieved, cfg):
     """Return the verifier result extended with evidence fields and the shaped reward."""
     out = {**result, **evidence_flags(task, retrieved)}
@@ -64,8 +75,12 @@ def shaped_result(result, task, retrieved, cfg):
     bonus = 0.0
     if eligible and cfg.mode == "evidence":
         bonus = cfg.alpha * out["first_evidence_found"] + cfg.beta * out["complete_evidence_chain"]
+    elif eligible and cfg.mode == "explore":  # evidence bonuses + an explicit incentive to continue searching
+        bonus = (cfg.alpha * out["first_evidence_found"] + cfg.beta * out["complete_evidence_chain"]
+                 + cfg.gamma * second_search_from_partial(task, retrieved))
     elif eligible and cfg.mode == "potential":
         bonus = potential_bonus(task, retrieved, cfg.potential_scale)
     out["evidence_bonus"] = round(bonus, 4)
+    out["second_search_from_partial"] = second_search_from_partial(task, retrieved)
     out["reward"] = round(result["reward"] + bonus, 4)
     return out
