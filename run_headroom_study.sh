@@ -59,6 +59,10 @@ BATCH=16; echo "selected sampling: T=$TEMP group size=$GSZ (training split probe
 for SEED in $SEEDS; do
   for R in "M3 original" "M4 evidence" "M4g grounded"; do
     set -- $R; NAME=$1_s$SEED
+    # a run that crashed before saving its adapter is set aside (never deleted) so the retrain starts clean
+    if [ -d $S/$NAME ] && [ ! -f $S/$NAME/adapter/adapter_config.json ]; then
+      mv $S/$NAME $S/${NAME}_crashed_$(date +%Y%m%d_%H%M%S); echo "set aside incomplete run -> ${NAME}_crashed_*"
+    fi
     [ -f $S/$NAME/adapter/adapter_config.json ] || python -m src.train_grpo --config $CFG --seed $SEED --output $S/$NAME \
         --override reward.mode=$2 grpo.temperature=$TEMP grpo.num_generations=$GSZ grpo.per_device_train_batch_size=$BATCH
     python -m src.train_diag $S/$NAME --init $SFT/B/adapter --out $S/diag_$NAME.json > /dev/null
