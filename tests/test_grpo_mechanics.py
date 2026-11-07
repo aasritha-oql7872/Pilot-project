@@ -56,6 +56,20 @@ def test_trajectory_signature():
     assert trajectory_signature(comp) == ("q1", "<answer>Z</answer>")
 
 
+def test_trajectory_signature_tolerates_malformed_calls():
+    """Colab crash at step 89: a tool call whose `arguments` was a JSON string (or a bare string) killed the run."""
+    for args in ('{"query": "q1"}', "not json", None, 5):
+        comp = [{"role": "assistant", "content": "", "tool_calls": [{"function": {"name": "search", "arguments": args}}]},
+                {"role": "assistant", "content": None}]
+        sig = trajectory_signature(comp)
+        assert isinstance(sig, tuple) and all(isinstance(x, str) for x in sig)
+    assert trajectory_signature([{"role": "assistant", "tool_calls": ["bare string"]}])[0] == "bare string"
+    assert trajectory_signature("a plain string completion") == ("",)
+    assert trajectory_signature([]) == ("",)
+    comp = [{"role": "assistant", "content": "", "tool_calls": [{"function": {"arguments": '{"query": "q1"}'}}]}]
+    assert trajectory_signature(comp)[0] == "q1"
+
+
 # ---- grounded reward ---------------------------------------------------------------------------------------------
 def _episode(answer, n_search=1):
     call = {"type": "function", "function": {"name": "search", "arguments": {"query": "q"}}}

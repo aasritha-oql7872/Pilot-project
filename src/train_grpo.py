@@ -84,12 +84,26 @@ class MetricsCSV(TrainerCallback):
                 writer.writerows(self.rows)
 
 
+def _query_of(call):
+    """Search query of one tool call. Tolerates malformed calls: arguments may be a JSON string, a bare string, or absent."""
+    if not isinstance(call, dict):
+        return str(call)
+    fn = call.get("function")
+    args = fn.get("arguments") if isinstance(fn, dict) else None
+    if isinstance(args, str):
+        try:
+            args = json.loads(args)
+        except ValueError:
+            return args
+    return str(args.get("query", "")) if isinstance(args, dict) else str(args or "")
+
+
 def trajectory_signature(completion):
-    """The agent's action sequence: every search query, then the final answer text."""
-    queries = [str((c.get("function", {}).get("arguments") or {}).get("query", ""))
-               for m in completion if m.get("role") == "assistant" for c in (m.get("tool_calls") or [])]
-    last = completion[-1].get("content") if completion else ""
-    return tuple(queries) + (last or "",)
+    """The agent's action sequence: every search query, then the final answer text. Diagnostic only, so it never raises."""
+    msgs = [m for m in completion if isinstance(m, dict)] if isinstance(completion, list) else []
+    queries = [_query_of(c) for m in msgs if m.get("role") == "assistant" for c in (m.get("tool_calls") or [])]
+    last = msgs[-1].get("content") if msgs else ""
+    return tuple(queries) + (last if isinstance(last, str) else str(last or ""),)
 
 
 def group_stats(rewards, orig_rewards, signatures, group_size, eps=1e-8):
@@ -152,11 +166,14 @@ def make_reward_func(trace_path, run_id, model_name, seed, reward_cfg=EvidenceRe
             log_metric("searchlite/twohop_correct", sum(r["correct"] for r in multi) / len(multi))
         log_metric("searchlite/answered", sum(r["final_answer"] is not None for r in results) / n)
         if n % group_size == 0:
-            gs = group_stats([r["reward"] for r in results], [r["original_reward"] for r in results],
-                             [trajectory_signature(c) for c in completions], group_size)
-            for k, v in gs.items():
-                if k != "groups":
-                    log_metric(f"searchlite/group_{k}", v)
+            try:  # diagnostics only: a logging problem must never abort a training run
+                gs = group_stats([r["reward"] for r in results], [r["original_reward"] for r in results],
+                                 [trajectory_signature(c) for c in completions], group_size)
+                for k, v in gs.items():
+                    if k != "groups":
+                        log_metric(f"searchlite/group_{k}", v)
+            except Exception as e:  # noqa: BLE001
+                print(f"[warn] group diagnostics skipped: {e!r}")
         # reward components, averaged over the batch (the training reward is their sum)
         log_metric("searchlite/c_correct", sum(r["correct"] for r in results) / n)
         log_metric("searchlite/c_search_cost", -0.05 * sum(r["num_searches"] for r in results) / n)
