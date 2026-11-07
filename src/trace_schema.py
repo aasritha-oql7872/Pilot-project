@@ -10,7 +10,8 @@ REQUIRED_FIELDS = ["run_id", "task_id", "split", "kind", "model", "step", "seed"
 def make_trace(run_id, task, model, step, seed, prompt, completion, env, result):
     return {"run_id": run_id, "task_id": task["task_id"], "split": task["split"], "kind": task["kind"],
             "model": model, "step": step, "seed": seed, "messages": prompt + completion,
-            "evidence_doc_ids": task["evidence_doc_ids"], "retrieved_doc_ids": env.retrieved, "gold_answer": task["gold"], **result}
+            "evidence_doc_ids": task["evidence_doc_ids"], "retrieved_doc_ids": env.retrieved, "gold_answer": task["gold"],
+            "category": task.get("category"), **result}
 
 
 def validate_trace(trace):

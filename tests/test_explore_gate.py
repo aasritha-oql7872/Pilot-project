@@ -33,3 +33,22 @@ def test_pilot_requires_a_real_second_search(tmp_path):
     assert decide_pilot(tmp_path)["proceed"] is False
     (tmp_path / "trajectories.jsonl").write_text(json.dumps(row(1, "t", "twohop", 2, 0.9)))
     assert decide_pilot(tmp_path)["proceed"] is True
+
+
+def test_signal_choice_and_stop(tmp_path):
+    from src.explore_gate import decide_headroom, decide_signal
+
+    def sig(path, T, frac, answered=0.95):
+        grp = lambda f: {m: {"frac_nonzero_std": f, "frac_bonus_created_variance": 0.0, "distinct_trajectories_per_group": 2.0}
+                         for m in ("original", "evidence", "grounded")}
+        path.write_text(json.dumps({"temperature": T, "answered_rate": answered, "accuracy": 0.7,
+                                    "group_size_4": grp(frac), "group_size_8": grp(frac + 0.1)}))
+        return str(path)
+    d = decide_signal([sig(tmp_path / "a.json", 0.7, 0.1), sig(tmp_path / "b.json", 1.0, 0.3)])
+    assert d["selected"]["temperature"] == 1.0 and d["selected"]["group_size"] == 8 and d["proceed"]
+    d = decide_signal([sig(tmp_path / "c.json", 0.7, 0.02), sig(tmp_path / "d.json", 1.0, 0.05, answered=0.2)])
+    assert d["proceed"] is False                       # nothing informative among settings that still answer
+    (tmp_path / "e.json").write_text(json.dumps({"episodes": [{"category": "x", "correct": True}] * 9 + [{"category": "y", "correct": False}]}))
+    assert decide_headroom(tmp_path / "e.json")["proceed"] is True      # category y at 0% leaves room
+    (tmp_path / "f.json").write_text(json.dumps({"episodes": [{"category": "x", "correct": True}] * 10}))
+    assert decide_headroom(tmp_path / "f.json")["proceed"] is False     # saturated

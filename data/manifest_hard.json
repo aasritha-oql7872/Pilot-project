@@ -1,0 +1,38 @@
+{
+  "seed": 20261106,
+  "revision": 2,
+  "revision_note": "regenerated before any model evaluation to make the stale_affiliation distractor outrank the gold record",
+  "categories": [
+    "standard",
+    "distractor_name",
+    "distractor_person",
+    "stale_affiliation",
+    "reverse_two_hop",
+    "unanswerable"
+  ],
+  "per_category": {
+    "hard_train": 20,
+    "hard_dev": 10,
+    "hard_final": 20
+  },
+  "splits": {
+    "hard_train": {
+      "tasks": 120,
+      "corpus_docs": 740,
+      "tasks_sha256": "c312001007a036c8",
+      "corpus_sha256": "2c0723fce78a9dae"
+    },
+    "hard_dev": {
+      "tasks": 60,
+      "corpus_docs": 370,
+      "tasks_sha256": "757bd42c0fb081c4",
+      "corpus_sha256": "38ecba6d97616504"
+    },
+    "hard_final": {
+      "tasks": 120,
+      "corpus_docs": 740,
+      "tasks_sha256": "b422fe1a76154d14",
+      "corpus_sha256": "0f685dfe483671a7"
+    }
+  }
+}

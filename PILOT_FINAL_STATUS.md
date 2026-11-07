@@ -37,3 +37,11 @@ Colab GPU outputs are on Drive (`MyDrive/SearchLite-RL/`), not in the repository
    `summary_sealed.md` -> fill REPORT 5.4.
 2. Cell 7 (typed explore probes) and cell 5 (E study). 3. Cell 6 (F study, pilots gate the full runs).
 4. Fill REPORT 5.5/8/10, plots (`python -m src.plot_metrics --run RUN --output RUN/figures`), finish slides.
+
+## Headroom study (branch `experiment/headroom-grpo`, 2026-11-06) — implemented, NOT yet run
+* Hard benchmark (`data/make_hard.py`, 6 categories incl. decoys, a stale record that outranks the gold one, reverse two-hop,
+  unanswerable) with validator and locked hashes; 94 CPU tests pass. Reports in `reports/` (phase1_audit, grpo_diagnostics,
+  evaluation_design, controlled_experiments, final_rl_findings).
+* Run order on Colab: `SearchLite_RL_Headroom_Study.ipynb` (cell 4 audit of the existing C/D artifacts, cell 5 gated headroom /
+  signal / training / hard_dev, freeze by the pre-registered rule, cell 8 locked `hard_final` once).
+* Question "does evidence-aware GRPO beat SFT where SFT has headroom?" is OPEN. No M1–M4 hard-benchmark number exists yet.

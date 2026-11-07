@@ -6,6 +6,7 @@ import string
 CORRECT_REWARD = 1.0
 SEARCH_COST = 0.05
 INVALID_COST = 0.10
+ABSTAIN_ANSWER = "insufficient evidence"  # the explicit abstention answer (unanswerable tasks have this gold)
 ANSWER_RE = re.compile(r"<answer>(.*?)</answer>", re.DOTALL)
 
 

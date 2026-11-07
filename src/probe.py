@@ -92,7 +92,7 @@ def main():
     parser.add_argument("--samples", type=int, default=8)
     parser.add_argument("--temperature", type=float, default=0.7)
     parser.add_argument("--prompt-variant", default="default")
-    parser.add_argument("--answer-format", default="default", choices=["default", "typed"])
+    parser.add_argument("--answer-format", default="default", choices=sorted(ANSWER_FORMATS))
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--seed", type=int, default=None, help="override the config seed")
     parser.add_argument("--output", required=True)

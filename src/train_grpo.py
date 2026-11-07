@@ -84,9 +84,57 @@ class MetricsCSV(TrainerCallback):
                 writer.writerows(self.rows)
 
 
-def make_reward_func(trace_path, run_id, model_name, seed, reward_cfg=EvidenceRewardConfig()):
+def trajectory_signature(completion):
+    """The agent's action sequence: every search query, then the final answer text."""
+    queries = [str((c.get("function", {}).get("arguments") or {}).get("query", ""))
+               for m in completion if m.get("role") == "assistant" for c in (m.get("tool_calls") or [])]
+    last = completion[-1].get("content") if completion else ""
+    return tuple(queries) + (last or "",)
+
+
+def group_stats(rewards, orig_rewards, signatures, group_size, eps=1e-8):
+    """Per-batch GRPO group diagnostics, with groups = consecutive `group_size` rollouts of one prompt.
+    Advantages follow TRL: (r - mean) / (std + 1e-4); a group has nonzero advantages iff its std is not ~0."""
+    import statistics as st
+    n = len(rewards) // group_size
+    groups = [(rewards[i * group_size:(i + 1) * group_size], orig_rewards[i * group_size:(i + 1) * group_size],
+               signatures[i * group_size:(i + 1) * group_size]) for i in range(n)]
+    sd = lambda xs: st.pstdev(xs) if len(xs) > 1 else 0.0
+    return {"groups": n,
+            "frac_nonzero_std": sum(sd(g[0]) > eps for g in groups) / n,
+            "frac_orig_nonzero_std": sum(sd(g[1]) > eps for g in groups) / n,
+            "frac_bonus_created_variance": sum(sd(g[0]) > eps and sd(g[1]) <= eps for g in groups) / n,
+            "distinct_trajectories_per_group": sum(len(set(g[2])) for g in groups) / n,
+            "mean_within_group_std": sum(sd(g[0]) for g in groups) / n}
+
+
+class ParamDrift(TrainerCallback):
+    """Every `every` optimizer steps: LoRA L2 / max-abs distance from the weights at the start of training, plus the
+    gradient norm, written to param_drift.csv. Shows whether the optimizer actually moves the adapter."""
+
+    def __init__(self, path, every=5):
+        self.path, self.every, self.init, self.rows = path, every, None, []
+
+    def _lora(self, model):
+        return {n: p.detach().float().cpu().clone() for n, p in model.named_parameters() if "lora_" in n}
+
+    def on_train_begin(self, args, state, control, model=None, **kwargs):
+        self.init = self._lora(model)
+
+    def on_step_end(self, args, state, control, model=None, **kwargs):
+        if state.global_step % self.every:
+            return
+        now = self._lora(model)
+        l2 = sum(((now[n] - self.init[n]) ** 2).sum().item() for n in now) ** 0.5
+        mx = max((now[n] - self.init[n]).abs().max().item() for n in now)
+        self.rows.append({"step": state.global_step, "lora_l2_from_init": l2, "lora_max_abs_from_init": mx})
+        with open(self.path, "w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=list(self.rows[0])); w.writeheader(); w.writerows(self.rows)
+
+
+def make_reward_func(trace_path, run_id, model_name, seed, reward_cfg=EvidenceRewardConfig(), group_size=4):
     def searchlite_reward(completions, environments, trainer_state, log_metric, **kwargs):
-        results = [shaped_result(score_episode(env, c), env.task, env.retrieved, reward_cfg)
+        results = [shaped_result(score_episode(env, c), env.task, env.retrieved, reward_cfg, env.retrieved_text)
                    for env, c in zip(environments, completions)]
         traces = [make_trace(run_id, env.task, model_name, trainer_state.global_step, seed,
                              env.task["prompt"], c, env, r)
@@ -103,6 +151,21 @@ def make_reward_func(trace_path, run_id, model_name, seed, reward_cfg=EvidenceRe
             log_metric("searchlite/twohop_searches", sum(r["num_searches"] for r in multi) / len(multi))
             log_metric("searchlite/twohop_correct", sum(r["correct"] for r in multi) / len(multi))
         log_metric("searchlite/answered", sum(r["final_answer"] is not None for r in results) / n)
+        if n % group_size == 0:
+            gs = group_stats([r["reward"] for r in results], [r["original_reward"] for r in results],
+                             [trajectory_signature(c) for c in completions], group_size)
+            for k, v in gs.items():
+                if k != "groups":
+                    log_metric(f"searchlite/group_{k}", v)
+        # reward components, averaged over the batch (the training reward is their sum)
+        log_metric("searchlite/c_correct", sum(r["correct"] for r in results) / n)
+        log_metric("searchlite/c_search_cost", -0.05 * sum(r["num_searches"] for r in results) / n)
+        log_metric("searchlite/c_invalid_cost", -0.10 * sum(r["num_invalid"] for r in results) / n)
+        log_metric("searchlite/c_shaping", sum(r["evidence_bonus"] for r in results) / n)
+        supp = [r["answer_supported"] for r in results if r["answer_supported"] is not None]
+        if supp:
+            log_metric("searchlite/answer_supported", sum(supp) / len(supp))
+        log_metric("searchlite/abstained", sum(bool(r["abstained"]) for r in results) / n)
         return [r["reward"] for r in results]
     return searchlite_reward
 
@@ -149,10 +212,10 @@ def main():
         args=grpo_args,
         train_dataset=task_dataset(train_splits),
         reward_funcs=make_reward_func(trace_path, out.name, cfg["model"], cfg["seed"],
-                                       EvidenceRewardConfig.from_dict(cfg.get("reward"))),
+                                       EvidenceRewardConfig.from_dict(cfg.get("reward")), cfg["grpo"]["num_generations"]),
         environment_factory=make_env_factory("+".join(train_splits), cfg.get("answer_format", "default")),
         peft_config=peft_config,
-        callbacks=[MetricsCSV(out / "train_metrics.csv")],
+        callbacks=[MetricsCSV(out / "train_metrics.csv"), ParamDrift(out / "param_drift.csv")],
     )
     trainable = sum(p.numel() for p in trainer.model.parameters() if p.requires_grad)
     before = lora_params(trainer.model)

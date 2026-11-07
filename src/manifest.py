@@ -34,8 +34,8 @@ def eval_entry(path):
             "accuracy": rep.get("metrics", {}).get("accuracy")}
 
 
-def verify_sealed():
-    manifest = json.loads((DATA_DIR / "manifest_sealed.json").read_text())["splits"]
+def verify_sealed(name="manifest_sealed.json"):
+    manifest = json.loads((DATA_DIR / name).read_text())["splits"]
     bad = []
     for split, h in manifest.items():
         for kind in ("tasks", "corpus"):
@@ -49,9 +49,10 @@ def main():
     parser.add_argument("--roots", nargs="*", default=[])
     parser.add_argument("--out", default=None)
     parser.add_argument("--verify-sealed", action="store_true")
+    parser.add_argument("--verify-hard", action="store_true", help="check hard_train/dev/final against data/manifest_hard.json")
     args = parser.parse_args()
-    if args.verify_sealed:
-        bad = verify_sealed()
+    if args.verify_sealed or args.verify_hard:
+        bad = verify_sealed("manifest_hard.json" if args.verify_hard else "manifest_sealed.json")
         print("sealed files modified: " + ", ".join(bad) if bad else "sealed files match manifest_sealed.json")
         sys.exit(1 if bad else 0)
     runs, evals = [], []

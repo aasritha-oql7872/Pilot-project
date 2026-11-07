@@ -9,7 +9,7 @@ import torch
 from trl.chat_template_utils import (add_response_schema, get_training_chat_template,
                                      is_chat_template_prefix_preserving, parse_response)
 
-from src.reward import score
+from src.reward import ABSTAIN_ANSWER, score
 from src.search_tool import Retriever, format_results
 
 MAX_SEARCHES = 2
@@ -21,6 +21,11 @@ ANSWER_FORMATS = {
     "typed": ("The answer must be only the requested value, not a sentence. Give exactly what the question asks "
               "for: if it asks where someone works, answer with the institution, not a person's name: "
               "<answer>value</answer>."),
+    # Hard-benchmark reminder (environment v2): same as typed, plus an explicit way to decline.
+    "typed_abstain": ("The answer must be only the requested value, not a sentence. Give exactly what the question asks "
+                      "for: if it asks where someone works, answer with the institution, not a person's name: "
+                      "<answer>value</answer>. If the records do not contain the answer, reply "
+                      f"<answer>{ABSTAIN_ANSWER}</answer>."),
 }
 SYSTEM_PROMPT = (
     "You answer questions about fictional research projects and people. You have no prior "
@@ -56,6 +61,7 @@ class SearchEnv:
     def reset(self, **task):
         self.task = task  # includes the private gold label; never shown to the model
         self.num_searches = 0
+        self.retrieved_text = []  # one list of record texts per executed search (for support checks; never gold)
         self.retrieved = []  # doc_ids returned by each search, in order
         return None  # the prompt already holds the question
 
@@ -75,6 +81,7 @@ class SearchEnv:
         self.num_searches += 1
         results = self.retriever.search(query)
         self.retrieved.append([r["doc_id"] for r in results])
+        self.retrieved_text.append([r["text"] for r in results])
         return format_results(results) + "\n\n" + self.answer_format
 
 

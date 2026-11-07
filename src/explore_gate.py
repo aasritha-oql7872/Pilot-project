@@ -54,13 +54,46 @@ def decide_early(paths, lo=0.2, hi=0.7):
             "note": None if pick else "no checkpoint has a sampled second-search rate in the target range; nothing is forced"}
 
 
+def decide_signal(paths, min_answered=0.8, min_informative=0.15):
+    """Pick (temperature, group size) with the most informative GRPO groups under the ORIGINAL reward (training split
+    probe), among settings whose rollouts still produce answers. Stop if even the best has too few informative groups."""
+    rows = []
+    for p in paths:
+        r = json.loads(Path(p).read_text())
+        for key in ("group_size_4", "group_size_8"):
+            if key in r:
+                o, e, g = (r[key][m] for m in ("original", "evidence", "grounded"))
+                rows.append({"temperature": r["temperature"], "group_size": int(key[-1]), "answered_rate": round(r["answered_rate"], 3),
+                             "accuracy": round(r["accuracy"], 3), "informative_groups_original": o["frac_nonzero_std"],
+                             "informative_groups_evidence": e["frac_nonzero_std"], "informative_groups_grounded": g["frac_nonzero_std"],
+                             "bonus_created_variance_evidence": e["frac_bonus_created_variance"],
+                             "bonus_created_variance_grounded": g["frac_bonus_created_variance"],
+                             "distinct_trajectories_per_group": o["distinct_trajectories_per_group"]})
+    ok = [r for r in rows if r["answered_rate"] >= min_answered]
+    best = max(ok, key=lambda r: (r["informative_groups_original"], -r["temperature"], -r["group_size"])) if ok else None
+    return {"table": rows, "selected": best, "proceed": bool(best and best["informative_groups_original"] >= min_informative),
+            "min_informative": min_informative}
+
+
+def decide_headroom(path, max_overall=0.85, max_category=0.8):
+    eps = json.loads(Path(path).read_text())["episodes"]
+    cats = {}
+    for e in eps:
+        cats.setdefault(e.get("category"), []).append(bool(e["correct"]))
+    acc = {c: round(sum(v) / len(v), 3) for c, v in cats.items()}
+    overall = sum(bool(e["correct"]) for e in eps) / len(eps)
+    return {"overall": round(overall, 3), "by_category": acc, "proceed": overall <= max_overall or min(acc.values()) <= max_category,
+            "rule": f"proceed iff overall <= {max_overall} or some category <= {max_category}"}
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=["temps", "pilot", "early"])
+    parser.add_argument("mode", choices=["temps", "pilot", "early", "signal", "headroom"])
     parser.add_argument("inputs", nargs="+")
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
     res = (decide_temps(args.inputs) if args.mode == "temps" else decide_pilot(args.inputs[0]) if args.mode == "pilot"
+           else decide_signal(args.inputs) if args.mode == "signal" else decide_headroom(args.inputs[0]) if args.mode == "headroom"
            else decide_early(args.inputs))
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(res, indent=2))

@@ -1,0 +1,42 @@
+# GRPO from the FROZEN SFT checkpoint (condition B) on the hard training tasks plus the original one-hop tasks (guards
+# against one-hop regression). M3 = reward original, M4 = evidence, M4g = grounded; they differ ONLY in reward.mode (+seed).
+# Temperature / group size are set from the signal probe (training split only) via --override.
+run_id: hard_grpo
+model: Qwen/Qwen3-0.6B
+seed: 42
+train_splits: [hard_train, train]
+answer_format: typed_abstain
+init_adapter: outputs/study_sft/B/adapter
+chat_template_kwargs: {enable_thinking: false}
+
+reward:
+  mode: original          # original | evidence | grounded
+  alpha: 0.10
+  beta: 0.30
+  unsupported_penalty: 0.25
+  onehop_bonus: false
+
+lora:
+  r: 8
+  lora_alpha: 16
+  lora_dropout: 0.05
+  target_modules: [q_proj, v_proj]
+
+grpo:
+  max_steps: 100
+  per_device_train_batch_size: 16   # 4 prompts x 4 generations (or 2 x 8 with num_generations=8)
+  gradient_accumulation_steps: 1
+  num_generations: 4
+  learning_rate: 2.0e-5
+  temperature: 0.7
+  max_completion_length: 384
+  max_tool_calling_iterations: 2
+  beta: 0.0
+  logging_steps: 1
+  save_strategy: "no"
+  report_to: none
+
+smoke:
+  max_steps: 3
+  per_device_train_batch_size: 8
+  max_completion_length: 192

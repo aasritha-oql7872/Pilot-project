@@ -14,7 +14,7 @@ from peft import PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from data.generate import DATA_DIR, file_hash, read_jsonl
-from src.environment import make_env_factory, run_episode
+from src.environment import ANSWER_FORMATS, make_env_factory, run_episode
 from src.trace_schema import make_trace, validate_trace
 
 
@@ -73,12 +73,14 @@ def main():
     parser.add_argument("--output", required=True)
     parser.add_argument("--config", default="configs/train.yaml")
     parser.add_argument("--prompt-variant", default="default", help="default | continue (prompt-only ablation)")
-    parser.add_argument("--answer-format", default=None, choices=["default", "typed"], help="override config")
+    parser.add_argument("--answer-format", default=None, choices=sorted(ANSWER_FORMATS), help="override config")
+    parser.add_argument("--temperature", type=float, default=None, help="sample instead of greedy decoding")
+    parser.add_argument("--seed", type=int, default=None, help="override the config seed (use with --temperature for repeats)")
     parser.add_argument("--limit", type=int, default=None, help="evaluate only the first N tasks")
     args = parser.parse_args()
 
     cfg = yaml.safe_load(Path(args.config).read_text())
-    torch.manual_seed(cfg["seed"])
+    torch.manual_seed(cfg["seed"] if args.seed is None else args.seed)
     model, tokenizer = load_policy(cfg["model"], args.checkpoint)
     env = make_env_factory(args.split, args.answer_format or cfg.get("answer_format", "default"))()
     tasks = read_jsonl(DATA_DIR / f"{args.split}_tasks.jsonl")[: args.limit]
@@ -88,14 +90,14 @@ def main():
         prompt, completion, result = run_episode(model, tokenizer, env, task,
                                                  cfg["grpo"]["max_completion_length"],
                                                  cfg["chat_template_kwargs"],
-                                                 prompt_variant=args.prompt_variant)
+                                                 temperature=args.temperature, prompt_variant=args.prompt_variant)
         trace = make_trace(f"eval_{args.checkpoint}", task, cfg["model"], None, cfg["seed"],
                            prompt, completion, env, result)
         traces.append(validate_trace(trace))
         print(f"[{i + 1}/{len(tasks)}] {task['task_id']} searches={result['num_searches']} "
               f"answer={result['final_answer']!r} gold={task['gold']!r} correct={result['correct']}")
 
-    report = {"checkpoint": args.checkpoint, "prompt_variant": args.prompt_variant, "answer_format": args.answer_format or cfg.get("answer_format", "default"), "split": args.split, "decoding": "greedy",
+    report = {"checkpoint": args.checkpoint, "prompt_variant": args.prompt_variant, "answer_format": args.answer_format or cfg.get("answer_format", "default"), "split": args.split, "decoding": "greedy" if args.temperature is None else f"sampled T={args.temperature}", "seed": cfg["seed"] if args.seed is None else args.seed,
               "corpus_sha256": file_hash(DATA_DIR / f"{args.split}_corpus.jsonl"),
               "metrics": summarize(traces), "episodes": traces}
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)
