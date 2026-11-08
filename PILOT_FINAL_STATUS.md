@@ -45,3 +45,12 @@ Colab GPU outputs are on Drive (`MyDrive/SearchLite-RL/`), not in the repository
 * Run order on Colab: `SearchLite_RL_Headroom_Study.ipynb` (cell 4 audit of the existing C/D artifacts, cell 5 gated headroom /
   signal / training / hard_dev, freeze by the pre-registered rule, cell 8 locked `hard_final` once).
 * Question "does evidence-aware GRPO beat SFT where SFT has headroom?" is OPEN. No M1–M4 hard-benchmark number exists yet.
+
+## Final submission pipeline (branch `experiment/headroom-grpo`, 2026-11-07) - implemented, NOT yet run on real artifacts
+The Colab results (Drive: `study_hard`, `study_sft`, `main_v2`) are not on this machine, so the earlier summary figures
+(M2 14/30, M3/M4 29/30, M4g 29-30/30 on twohop_dev) are **unverified here**; `src.verify_claims` checks them against the saved JSONs.
+Added: `src/freeze_hard.py` (immutable FROZEN_HARD.json), `run_format_control.sh`, `run_hard_final.sh` (updated),
+`src/rl_improvement.py` (paired before/after, behaviour decomposition), `src/failure_analysis.py`, `src/trace_facts.py`,
+`src/make_figures.py`, `src/case_studies.py`, `src/train_summary.py`, `src/build_report.py`, `src/package_submission.py`,
+`src/submission_check.py`, `run_final_analysis.sh`, `SearchLite_RL_Final_Submission.ipynb`, `reports/FINAL_PILOT_REPORT.template.md`.
+Known confound to resolve with the format control: M2 is evaluated on the hard benchmark with the `typed_abstain` reminder it never trained with.

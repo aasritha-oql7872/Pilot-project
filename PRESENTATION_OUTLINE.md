@@ -29,3 +29,14 @@ search and answers with the investigator's name, and B finds the institution.
 * *Generalization beyond templates?* Not shown: dev and sealed sets share question templates with new entities.
 * *Why is SFT better than GRPO here?* It supplies the missing action; after SFT 95% of GRPO groups had zero reward variance.
 * *With more compute?* More seeds, larger model, rephrased and out-of-template questions, a real corpus, a curriculum from partial SFT.
+
+## Final-submission slide map (mandatory requirements must be visible)
+| Course requirement | Slide content (all from saved files) |
+|---|---|
+| 1. RL framework set up and running | architecture diagram; TRL GRPO + LoRA + BM25 environment; one line: tests pass, runs resumable on Colab; training log excerpt |
+| 2. Reward and policy-loss curves | `fig1` (original GRPO) and `fig2` (M2-initialised GRPO) side by side; caption: GRPO loss is not a cross-entropy, ~0 at start and exactly 0 when a group ties, so judge by reward, informative-group share and behaviour |
+| 3. Case studies of decisions and tool use | six real traces from `submission/case_studies.md`: original GRPO stops after one search; SFT searches twice; GRPO fixes an M2 error; a stale-affiliation success; a reverse two-hop failure; an unanswerable question answered without support |
+| Bonus | paired M2-before / after-GRPO table with CI; format control; reward-variant ablation; signal diagnostics (share of groups with reward spread) |
+
+Headline sentence to use only after `run_final_analysis.sh` has run: it is the first paragraph of `submission/FINAL_PILOT_REPORT.md`
+(generated from the saved comparison; it includes the format-control caveat and the missing SFT-on-hard-data control).

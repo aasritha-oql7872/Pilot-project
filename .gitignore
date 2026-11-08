@@ -54,3 +54,8 @@ tmp/
 !/REPORT.md
 !/PRESENTATION_OUTLINE.md
 !/reports/*.md
+
+# Submission package and report built by run_final_analysis.sh (kept out of the public repository)
+/submission/
+/searchlite_rl_submission.zip
+!/reports/FINAL_PILOT_REPORT.template.md
