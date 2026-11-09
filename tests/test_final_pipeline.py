@@ -175,12 +175,14 @@ def test_freeze_end_to_end_and_immutable(tmp_path):
 def test_report_headline_and_conclusions(study, tmp_path):
     from src.build_report import conclusions, headline
     sub = tmp_path / "sub"; (sub / "tables").mkdir(parents=True)
-    assert "INCOMPLETE" in headline(sub) and "no conclusion" in conclusions(sub).lower() or "Not yet established" in conclusions(sub)
+    assert "INCOMPLETE" in headline(sub) and "Not yet established" in conclusions(sub)
     run("src.rl_improvement", "--study", str(study), "--split", "hard_dev", "--after", "M3_s42", "--out", str(sub / "tables" / "rl_hard_final.json"))
+    r = run("src.two_comparisons", "--study", str(study), "--split", "hard_dev", "--headline", "M3_s42", "--out", str(sub / "tables" / "two_comparisons.json"))
+    assert r.returncode == 0, r.stderr
     (sub / "FROZEN_HARD.json").write_text(json.dumps({"headline_model": "M3", "training_seed": 42, "headline_label": "M3 seed 42", "frozen_at_utc": "t"}))
     h, c = headline(sub), conclusions(sub)
-    assert "60/60" in h and "+100.0" in h and "typed" in h
-    assert "not in retrieving" not in c and "search behaviour" in c        # chain 0% -> 100% is a search-behaviour gain
-    assert "no SFT-on-`hard_train` control" in c
+    assert "60/60" in h and "Comparison A" in h and "Comparison B" in h and "typed" in h and "not** be attributed to RL alone" in h
+    assert "substantial part of the search-behaviour gain is not explained by the reminder" in c   # chain 0% -> 100% under both baselines
+    assert "no SFT-on-`hard_train` control" in c and "Comparison B" in c
     (sub / "FROZEN_HARD.json").write_text(json.dumps({"headline_model": "M2", "training_seed": None, "headline_label": "M2", "frozen_at_utc": "t"}))
     assert "negative result" in headline(sub)

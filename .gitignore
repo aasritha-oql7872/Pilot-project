@@ -57,5 +57,7 @@ tmp/
 
 # Submission package and report built by run_final_analysis.sh (kept out of the public repository)
 /submission/
-/searchlite_rl_submission.zip
+/searchlite_rl_submission*.zip
+/searchlite_rl_submission*.zip.sha256
+/executed_notebooks/
 !/reports/FINAL_PILOT_REPORT.template.md
