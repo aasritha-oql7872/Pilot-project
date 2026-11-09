@@ -101,8 +101,12 @@ def main():
         ad = sub / "checkpoint" / "frozen_headline_adapter" / "adapter_model.safetensors"
         add("frozen adapter hash equals the freeze manifest", ad.exists() and sha256(ad) == m.get("adapter_sha256"), "" if ad.exists() else "adapter not packaged")
     if not args.no_tests:
-        ok, last = run(sys.executable, "-m", "pytest", "-q", "tests")   # not the package's own copy under submission/code/tests
-        add("full test suite", ok, last[0])
+        r = subprocess.run([sys.executable, "-m", "pytest", "-q", "-rf", "--tb=short", "-p", "no:cacheprovider", "tests"], capture_output=True, text=True)
+        out = (r.stdout + r.stderr).strip().splitlines()   # not the package's own copy under submission/code/tests
+        failed = [l.split(" - ")[0].replace("FAILED ", "") for l in out if l.startswith("FAILED ")]
+        (sub / "tables").mkdir(parents=True, exist_ok=True)
+        (sub / "tables" / "test_output.txt").write_text("\n".join(out) + "\n")
+        add("full test suite", r.returncode == 0, (out[-1] if out else "") + (f" | failing: {'; '.join(failed)}" if failed else ""))
     hits = []
     for p in Path(".").rglob("*"):
         if p.is_file() and not (set(p.parts) & SKIP) and p.suffix in TEXT:
